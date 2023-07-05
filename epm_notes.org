@@ -1,0 +1,16 @@
+* T-junctions
+- Detection not working yet, so can't go about fixing them.
+
+
+* Leafy BSP
+- Leaf-condition: Instead of "all planes in the subset are coplanar" indicating
+  a stopping point, do "the planes in the subset all lie on the boundary of the
+  convex hull. I believe this can checked merely by ensuring that for each
+  polygon P in the subset, all other polygons Q in the subset are on the same
+  side of P or coplanar with P.
+
+  
+* Raster faster
+** Perspective-correct vertex attribute interpolation.
+- Do perspective-correct texture mapping every n-th pixel (likely want n = 8,
+  16, or 32) instead of every pixel, and interpolate between.

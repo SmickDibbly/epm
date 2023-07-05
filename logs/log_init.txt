@@ -1,0 +1,35 @@
+[2023-07-04 22:42:44] INIT.INFO: Initialized logging system.
+[2023-07-04 22:42:44] INIT.INFO: Initializing Dynamic Variables...
+[2023-07-04 22:42:44] INIT.INFO: Initialized Dynamic Variables.
+[2023-07-04 22:42:44] INIT.INFO: Initializing Config Reader...
+[2023-07-04 22:42:44] INIT.INFO: Initialized Config Reader.
+[2023-07-04 22:42:44] INIT.INFO: Initializing Signals...
+[2023-07-04 22:42:44] INIT.INFO: Initialized Signals.
+[2023-07-04 22:42:44] INIT.INFO: Initializing Timing...
+[2023-07-04 22:42:44] INIT.SYS.INFO: Initializing time.
+[2023-07-04 22:42:44] INIT.INFO: Initialized Timing.
+[2023-07-04 22:42:44] INIT.INFO: Initializing IO library...
+[2023-07-04 22:42:44] INIT.INFO: Initialized IO library.
+[2023-07-04 22:42:44] INIT.INFO: Initializing Graphics...
+[2023-07-04 22:42:44] INIT.DRAW.INFO: Initializing windows.
+[2023-07-04 22:42:44] INIT.DRAW.INFO: Initializing viewports.
+[2023-07-04 22:42:44] INIT.DRAW.INFO: Linking windows.
+[2023-07-04 22:42:44] INIT.DRAW.INFO: Preloading textures.
+[2023-07-04 22:42:44] INIT.INFO: Initialized Graphics.
+[2023-07-04 22:42:44] INIT.INFO: Initializing Input...
+[2023-07-04 22:42:44] INIT.INFO: Initialized Input.
+[2023-07-04 22:42:44] INIT.INFO: Initializing Interface...
+[2023-07-04 22:42:44] INIT.INTERFACE.INFO: Initializing viewport interfaces.
+[2023-07-04 22:42:44] INPUT.DPAD.INFO: Registered dpad 0.
+[2023-07-04 22:42:44] INPUT.DPAD.INFO: Registered dpad 1.
+[2023-07-04 22:42:44] INIT.INTERFACE.INFO: Setting initial viewport layout.
+[2023-07-04 22:42:44] INIT.INTERFACE.INFO: Mapping initial viewport interfaces.
+[2023-07-04 22:42:44] INIT.INFO: Initialized Interface.
+[2023-07-04 22:42:44] INIT.INFO: Initializing World...
+[2023-07-04 22:42:44] MISC.INFO: Reading Wavefront OBJ file: ../assets/obj_samples/DOOM_E1M1.obj
+[2023-07-04 22:42:45] MISC.INFO: Reading Wavefront OBJ file: ../assets/obj_samples/skybox.obj
+[2023-07-04 22:42:45] WORLD.INFO: Reading world from file: ../assets/worlds/brush_world2.ewd
+[2023-07-04 22:42:45] BSP.INFO: Creating BSP tree.
+[2023-07-04 22:42:45] BSP.INFO: BSP Compilation Time: 0.0049 seconds
+[2023-07-04 22:42:45] INIT.INFO: Initialized World.
+[2023-07-04 22:42:45] INIT.INFO: Initialized the Electric Pentacle.

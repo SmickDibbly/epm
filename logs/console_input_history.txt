@@ -1,0 +1,28 @@
+light_mode 2
+light_mode 0
+measure_BSPTree
+measure_BSPTree
+worldfromobj DOOM_E1M1
+worldfromobj teapot
+loadworld brush_world2
+loadworld brush_world2
+brush_from_frame sub
+output_geo
+outputgeo test
+loadworld brush_world2
+apply_texture grass256
+apply_texture sky
+apply_texture sky
+apply_texture sky
+apply_texture sky
+apply_texture sky
+apply_texture sky
+apply_texture sky
+apply_texture grass256
+apply_texture grass256
+apply_texture sky
+apply_texture sky
+apply_texture sky
+measure_BSPTree
+measure_BSPTree
+apply_texture sky
