@@ -3,7 +3,7 @@ assets/obj_samples/
 assets/qoi_test_images/
 assets/gltf/*
 assets/meshes/*
-assets/textures/*
+assets/textures/misc/
 assets/worlds/*
 debug/
 zigil/
