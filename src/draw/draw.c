@@ -127,6 +127,7 @@ epm_Result epm_InitDraw(void) {
     if (EPM_FAILURE == get_texture_by_name("null", &tmp)) {
         return EPM_FAILURE;
     }
+    /*
     if (EPM_FAILURE == get_texture_by_name("grass256", &tmp)) {
         return EPM_FAILURE;
     }
@@ -148,7 +149,8 @@ epm_Result epm_InitDraw(void) {
     if (EPM_FAILURE == get_texture_by_name("sky", &tmp)) {
         return EPM_FAILURE;
     }
-
+    */
+    
     zgl_PixelArray *tmp_pixarr = zgl_ReadBMP("../assets/light_icon.bmp");
     MIP_light_icon = zgl_MipifyPixelArray(tmp_pixarr);
     zgl_DestroyPixelArray(tmp_pixarr);
