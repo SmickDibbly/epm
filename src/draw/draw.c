@@ -125,28 +125,28 @@ epm_Result epm_InitDraw(void) {
     // loading a world.
     size_t tmp;
     if (EPM_FAILURE == get_texture_by_name("null", &tmp)) {
-        exit(0);
+        return EPM_FAILURE;
     }
     if (EPM_FAILURE == get_texture_by_name("grass256", &tmp)) {
-        exit(0);
+        return EPM_FAILURE;
     }
     if (EPM_FAILURE == get_texture_by_name("dirt09_256", &tmp)) {
-        exit(0);
+        return EPM_FAILURE;
     }
     if (EPM_FAILURE == get_texture_by_name("rock256", &tmp)) {
-        exit(0);
+        return EPM_FAILURE;
     }
     if (EPM_FAILURE == get_texture_by_name("brick02_128", &tmp)) {
-        exit(0);
+        return EPM_FAILURE;
     }
     if (EPM_FAILURE == get_texture_by_name("squarepave", &tmp)) {
-        exit(0);
+        return EPM_FAILURE;
     }
     if (EPM_FAILURE == get_texture_by_name("quaker", &tmp)) {
-        exit(0);
+        return EPM_FAILURE;
     }
     if (EPM_FAILURE == get_texture_by_name("sky", &tmp)) {
-        exit(0);
+        return EPM_FAILURE;
     }
 
     zgl_PixelArray *tmp_pixarr = zgl_ReadBMP("../assets/light_icon.bmp");

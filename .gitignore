@@ -6,6 +6,7 @@ assets/meshes/*
 assets/textures/*
 assets/worlds/*
 debug/
+zigil/
 references/
 build/linux/
 build/windows/

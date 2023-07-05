@@ -1,4 +1,7 @@
 #include "src/draw/textures.h"
+#include "src/system/dir.h"
+#include "zigil/zigil_dir.h"
+
 
 // weird includes
 #include "src/world/geometry.h"
@@ -137,14 +140,40 @@ epm_Result get_texture_by_name(char const *name, size_t *out_i_tex) {
 
     // texture not found in memory; try to load it
 
-    char filename[MAX_TEXTURE_NAME_LEN + 1] = {'\0'};
-    snprintf(filename, MAX_TEXTURE_NAME_LEN + 1, "../assets/textures/%s.bmp", name);
+    char path[128] = {'\0'};
+    strcpy(path, DIR_TEX);
     
-    if (NULL == load_Texture(filename)) {
-        return EPM_FAILURE;
+    char filename[MAX_TEXTURE_NAME_LEN + 1] = {'\0'};
+    //zgl_DirListing dl;
+    //zgl_GetDirListing(&dl, path);
+    
+    strcpy(filename, path);
+    strcat(filename, name);
+    strcat(filename, SUF_BMP);
+    
+    if (load_Texture(filename)) {
+        return EPM_SUCCESS;
     }
 
-    return EPM_SUCCESS;
+    strcpy(filename, path);
+    strcat(filename, "default/");
+    strcat(filename, name);
+    strcat(filename, SUF_BMP);
+
+    if (load_Texture(filename)) {
+        return EPM_SUCCESS;
+    }
+
+    strcpy(filename, path);
+    strcat(filename, "misc/");
+    strcat(filename, name);
+    strcat(filename, SUF_BMP);
+
+    if (load_Texture(filename)) {
+        return EPM_SUCCESS;
+    }
+    
+    return EPM_FAILURE;
 }
 
 
