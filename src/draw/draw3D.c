@@ -1356,7 +1356,7 @@ void select_vertex(Window *win, zgl_Pixel pixel) {
 
 void select_one_face(Window *win, zgl_Pixel pixel) {
     BSPFace *bspface = BSPFace_below(win, pixel, g_p_frustum);
-    if ( ! g_world.geo_bsp) return;
+    if ( ! g_world.geo_bsp || ! bspface) return;
     Face const *gen_face = g_world.geo_bsp->gen_faces + bspface->i_gen_face;
     if (bspface) {
         bool selected =
