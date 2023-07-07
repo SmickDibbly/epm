@@ -19,6 +19,7 @@ ViewportInterface default_vpi = {
 
 ViewportInterface * const viewport_interfaces[NUM_VPI] = {
     [VPI_NONE]        = &default_vpi,
+    [VPI_MONITOR]     = &interface_Monitor,
     [VPI_WORLD3D]     = &interface_World3D,
     [VPI_WORLDTOP]    = &interface_WorldTop,
     [VPI_WORLDSIDE]   = &interface_WorldSide,
@@ -32,6 +33,7 @@ ViewportInterface * const viewport_interfaces[NUM_VPI] = {
 
 VPInterfaceCode interface_cycle[NUM_VPI] = {
     VPI_NONE,
+    VPI_MONITOR,
     VPI_WORLD3D,
     VPI_WORLDTOP,
     VPI_WORLDSIDE,
