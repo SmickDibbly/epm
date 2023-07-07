@@ -21,6 +21,15 @@ This is an open-ended hobby project. As such, I don't know where it is going in 
 - No floating point types in the code (almost... sometimes I get lazy if I just need to print a ratio of integers).
 - No GPU support.
 
+# Building
+On a linux-kernel OS, from the zigil/build/ directory, run the shell command:
+
+```Shell
+make --file=linux.mk
+```
+
+This will create zigil/build/linux/libzigil.a, to be linked to other projects at your leisure. The API consists of all the header files in zigil/src/ (header files from any further subdirectories thereof are not part of the API).
+
 # Links
 Discord: https://discord.gg/KUmMRdd4bM
 Youtube: https://youtube.com/@SmickEDibbly
