@@ -237,9 +237,9 @@ epm_Result epm_InitWorld(void) {
         });
     //fix_all_t_junctions((Mesh){});
     */
-    read_OBJ(&teapot, "DOOM_E1M1");
-    read_OBJ(&skybox, "skybox");        
-    epm_LoadWorld("brush_world2");
+    //read_OBJ(&teapot, "DOOM_E1M1");
+    //read_OBJ(&skybox, "skybox");        
+    //epm_LoadWorld("brush_world2");
 
     return EPM_SUCCESS;
 }
