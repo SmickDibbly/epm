@@ -375,7 +375,7 @@ static void convert_to_mesh(Mesh *p_mesh) {
         f.i_v[1] = g_Fs[i_f].v2 - 1;
         f.i_v[2] = g_Fs[i_f].v3 - 1;
 
-        get_texture_by_name("quaker", &f.i_tex);
+        f.i_tex = epm_TextureIndexFromName("quaker");
         if (g_Fs[i_f].has_vt) {
             dibj_Face *ogl_f = g_Fs + i_f;
             f.vtxl[0].x = (Fix32)(g_VTs[ogl_f->vt1 - 1].u * 296 * FIX_P16_ONE);

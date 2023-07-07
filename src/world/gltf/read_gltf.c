@@ -346,7 +346,7 @@ static void convert_to_mesh(Mesh *p_mesh) {
             f.i_v[1] = base_v + i_v1;
             f.i_v[2] = base_v + i_v2;
 
-            get_texture_by_name("squarepave", &f.i_tex);
+            f.i_tex = epm_TextureIndexFromName("squarepave");
             if (true) {
                 f.vtxl[0].x = (Fix32)(tris->texels[i_v0].x * 256 * FIX_P16_ONE);
                 f.vtxl[0].y = (Fix32)(tris->texels[i_v0].y * 256 * FIX_P16_ONE);
@@ -360,7 +360,7 @@ static void convert_to_mesh(Mesh *p_mesh) {
                 epm_Texture *tex = &textures[f.i_tex];
                 f.vtxl[0] = (Fix32Vec_2D){(int)(tex->w << 16) - 1, 0};
                 f.vtxl[1] = (Fix32Vec_2D){0, 0};
-                f.vtxl[2] = (Fix32Vec_2D){0, (int)(tex->h << 16) - 1};    
+                f.vtxl[2] = (Fix32Vec_2D){0, (int)(tex->h << 16) - 1};
             }
         
             f.flags = 0;

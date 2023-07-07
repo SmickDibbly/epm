@@ -1141,7 +1141,7 @@ epm_Result load_Mesh_dibj_1(Mesh *mesh, char *filename) {
             
             sscanf(line+strlen("ft "), " %zu", &i_tex);
             mesh->faces[i_face].i_tex = i_tex;
-            get_texture_by_name(texnames[i_tex], &mesh->faces[i_face].i_tex);
+            mesh->faces[i_face].i_tex = epm_TextureIndexFromName(texnames[i_tex]);
             
             i_face++;
 

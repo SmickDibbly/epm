@@ -4,7 +4,7 @@
 #include "src/draw/textures.h"
 #include "src/world/brush.h"
 
-#define VERBOSITY
+//#define VERBOSITY
 #include "src/locallibs/verbosity.h"
 
 #undef LOG_LABEL
@@ -251,7 +251,10 @@ static void read_Brush(FILE *in_fp) {
     node->brush = brush;
     
     */
+
+#ifdef VERBOSITY
     write_Brush(brush, stdout); // TODO: VERBOSIFY
+#endif
     return;
 }
 
@@ -386,15 +389,17 @@ epm_Result epm_ReadWorldFile(epm_World *world, char const *filename) {
         
         for (size_t i = 0; i < cuboid->num_quads; i++) {
             size_t i_tex;
-            get_texture_by_name(texnames[cuboid->quads[i].quad.i_tex], &i_tex);
+            i_tex = epm_TextureIndexFromName(texnames[cuboid->quads[i].quad.i_tex]);
             cuboid->quads[i].quad.i_tex = i_tex;
         }
     }
     world->loaded = true;
 
+    /*
     for (BrushNode *node = world->geo_brush->head; node; node = node->next) {
         write_Brush(node->brush, stdout);    
     }
+    */
     
     num_texnames = 0;
     return EPM_SUCCESS;

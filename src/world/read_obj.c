@@ -572,7 +572,7 @@ static void convert_to_mesh(Mesh *p_mesh) {
             f.i_v[1] = g_Fs[i_f].v[1] - 1;
             f.i_v[2] = g_Fs[i_f].v[2] - 1;
 
-            get_texture_by_name(texture_name, &f.i_tex);
+            f.i_tex = epm_TextureIndexFromName(texture_name);
             if (g_Fs[i_f].has_vt) {
                 obj_Face *ogl_f = g_Fs + i_f;
                 f.vtxl[0].x = (Fix32)(g_VTs[ogl_f->vt[0] - 1].u * 296 * FIX_P16_ONE);
@@ -606,7 +606,7 @@ static void convert_to_mesh(Mesh *p_mesh) {
                 f.i_v[1] = g_Fs[i_f].v[i1] - 1;
                 f.i_v[2] = g_Fs[i_f].v[i2] - 1;
 
-                get_texture_by_name(texture_name, &f.i_tex);
+                f.i_tex = epm_TextureIndexFromName(texture_name);
                 if (g_Fs[i_f].has_vt) {
                     obj_Face *ogl_f = g_Fs + i_f;
                     f.vtxl[0].x = (Fix32)(g_VTs[ogl_f->vt[i0] - 1].u * 296 * FIX_P16_ONE);
@@ -637,7 +637,7 @@ static void convert_to_mesh(Mesh *p_mesh) {
                 f.i_v[1] = g_Fs[i_f].v[i1] - 1;
                 f.i_v[2] = g_Fs[i_f].v[i2] - 1;
 
-                get_texture_by_name(texture_name, &f.i_tex);
+                f.i_tex = epm_TextureIndexFromName(texture_name);
                 if (g_Fs[i_f].has_vt) {
                     
                     obj_Face *ogl_f = g_Fs + i_f;                    

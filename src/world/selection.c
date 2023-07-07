@@ -347,9 +347,9 @@ void sel_clear(Selection *sel) {
 #include "src/draw/textures.h"
 
 void apply_texture(char const *texname) {
-    size_t i_tex;
+    int32_t i_tex = epm_TextureIndexFromName(texname);
     
-    if (EPM_FAILURE != get_texture_by_name(texname, &i_tex)) {
+    if (i_tex != EPM_FAILURE) {
         for (SelectionNode *node = sel_face.head; node; node = node->next) {
             ((BrushQuadFace *)node->object)->quad.i_tex = i_tex;
             ((BrushQuadFace *)node->object)->subface0->i_tex = i_tex;
