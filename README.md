@@ -25,15 +25,11 @@ This is an open-ended hobby project. As such, I don't know where it is going in 
 
 These instructions are for linux-kernel OSes. Only tested on Ubuntu as of 2023-07-07.
 
-# File structure
-
 You need both Zigil and EPM. Ensure that the root directories for both Zigil and EPM are in the same directory. Ensure that the Zigil directory is called "zigil" and the EPM directory is called "epm".
-
-## Build Zigil
 
 In short, starting from zigil/build/:
 
-```
+```Shell
 make --file=linux.mk
 make --file=linux.mk install
 cd ../../epm/build/
@@ -41,7 +37,7 @@ make --file=linux.mk
 ./epm
 ```
 
-From the zigil/build/ directory, run the shell command:
+A longer explanation follows. From the zigil/build/ directory, run the shell command:
 
 ```Shell
 make --file=linux.mk
@@ -61,7 +57,9 @@ make --file=linux.mk
 
 If this has worked, you should now be able to run EPM simply with:
 
-```./epm```
+```Shell
+./epm
+```
 
 # Links
 Discord: https://discord.gg/KUmMRdd4bM
