@@ -12,5 +12,6 @@ extern ViewportInterface interface_FileSelect;
 extern ViewportInterface interface_Console;
 extern ViewportInterface interface_TexView;
 extern ViewportInterface interface_BSPView;
+extern ViewportInterface interface_Monitor;
 
 #endif /* INTERFACE_REGISTRY_H */
