@@ -119,30 +119,21 @@ epm_Result epm_InitDraw(void) {
     _epm_Log("INIT.DRAW", LT_INFO, "Preloading textures.");
     // Loading textures. TODO: This can be done on an as-needed basis upon
     // loading a world.
-    size_t tmp;
-    if (EPM_FAILURE == get_texture_by_name("null", &tmp)) {
+    if (EPM_FAILURE == epm_TextureIndexFromName("null")) {
         return EPM_FAILURE;
     }
+
     /*
-    if (EPM_FAILURE == get_texture_by_name("grass256", &tmp)) {
+    if (EPM_FAILURE == epm_TextureIndexFromName("mrbl_c2_6")) {
         return EPM_FAILURE;
     }
-    if (EPM_FAILURE == get_texture_by_name("dirt09_256", &tmp)) {
+    if (EPM_FAILURE == epm_TextureIndexFromName("mrbl_fp3_6")) {
         return EPM_FAILURE;
     }
-    if (EPM_FAILURE == get_texture_by_name("rock256", &tmp)) {
+    if (EPM_FAILURE == epm_TextureIndexFromName("mrbl_orn2_12")) {
         return EPM_FAILURE;
     }
-    if (EPM_FAILURE == get_texture_by_name("brick02_128", &tmp)) {
-        return EPM_FAILURE;
-    }
-    if (EPM_FAILURE == get_texture_by_name("squarepave", &tmp)) {
-        return EPM_FAILURE;
-    }
-    if (EPM_FAILURE == get_texture_by_name("quaker", &tmp)) {
-        return EPM_FAILURE;
-    }
-    if (EPM_FAILURE == get_texture_by_name("sky", &tmp)) {
+    if (EPM_FAILURE == epm_TextureIndexFromName("sky")) {
         return EPM_FAILURE;
     }
     */
@@ -165,7 +156,7 @@ epm_Result epm_TermDraw(void) {
     zgl_DestroyMipMap(MIP_light_icon);
     
     for (size_t i_tex = 0; i_tex < g_num_textures; i_tex++) {
-        unload_Texture(textures + i_tex);
+        epm_UnloadTexture(textures + i_tex);
     }
 
     epm_TermText();
