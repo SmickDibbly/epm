@@ -24,19 +24,28 @@ extern size_t g_num_textures;
 extern epm_Texture textures[MAX_TEXTURES];
 
 /** Load an epm_Texture into the global textures[] array. */
-extern epm_Texture *load_Texture(char const *filename);
-extern epm_Result unload_Texture(epm_Texture *tex);
-
-/** Given the name of a texture, fill in the out_i_tex variable with the index
-    to it in the textures[] array. If the texture is not in the array, return
-    EPM_FAILURE */
-extern epm_Result texture_index_from_name(char const *name, size_t *out_i_tex);
+extern epm_Texture *epm_LoadTexture(char const *texname, char const *filename);
+extern epm_Result epm_UnloadTexture(epm_Texture *tex);
 
 /** Given the name of a texture, fill in the out_i_tex variable with the index
     to it in the textures[] array. If the texture is not in the array, attempt
     to load it and then return the index. If the texture can not be loaded,
     return EPM_FAILURE */
-extern epm_Result get_texture_by_name(char const *name, size_t *out_i_tex);
+extern int32_t epm_TextureIndexFromName(char const *name);
+
+// IDEA: Placeholder "missing texture" textures. If, for example, a level needs
+// a texture called CrackedConcrete256 but that isn't found, there should be an
+// entry added to the texture array that represents this, but is marked as
+// "missing" and is rendered as some chosen default instead (null.bmp probably)
+//
+// Saving a level with a missing texture should be the same as saving it as if
+// the texture were there. Thus the missing texture placeholder would need to
+// retain the name of the missing texture.
+
+
+
+
+/* Move this shish */
 
 extern void scale_texels_to_world(Fix32Vec V0, Fix32Vec V1, Fix32Vec V2, Fix32Vec_2D *TV0, Fix32Vec_2D *TV1, Fix32Vec_2D *TV2, epm_Texture *tex);
 

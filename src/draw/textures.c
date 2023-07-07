@@ -2,7 +2,6 @@
 #include "src/system/dir.h"
 #include "zigil/zigil_dir.h"
 
-
 // weird includes
 #include "src/world/geometry.h"
 
@@ -16,34 +15,27 @@ size_t g_num_textures = 0;
 epm_Texture textures[MAX_TEXTURES] = {0};
 static zgl_PixelArray texture_pix[MAX_TEXTURES] = {0};
 
-static void texture_name_from_filename(char const *filename, char *tex_name);
-
-static char g_nametmp[MAX_TEXTURE_NAME_LEN + 1] = {'\0'};
-
-epm_Texture *load_Texture(char const *filename) {
+epm_Texture *epm_LoadTexture(char const *texname, char const *filename) {
     epm_Texture *tex = &textures[g_num_textures];
-    
-    texture_name_from_filename(filename, g_nametmp);
-    
+        
     zgl_PixelArray *pix = zgl_ReadBMP(filename);
     if ( ! pix) {
-        epm_Log(LT_WARN, "Texture named \"%s\" not found from file.\n", g_nametmp);
         return NULL;
     }
 
     if (pix->w != pix->h) {
-        epm_Log(LT_WARN, "Texture named \"%s\" has unequal width and height; cannot use.\n", g_nametmp);
+        epm_Log(LT_WARN, "Texture in file \"%s\" has unequal width and height; cannot use.\n", filename);
         return NULL;
     }
     
     if (pix->w == 0 || pix->h == 0) {
-        epm_Log(LT_WARN, "Texture named \"%s\" has 0 width and/or 0 height; cannot use.\n", g_nametmp);
+        epm_Log(LT_WARN, "Texture in file \"%s\" has 0 width and/or 0 height; cannot use.\n", filename);
         return NULL;
     }
 
     if ((pix->w & (pix->w - 1)) != 0 ||
         (pix->h & (pix->h - 1)) != 0 ) {
-        epm_Log(LT_WARN, "Texture named \"%s\" has either width or height that is not a power of 2; cannot use.\n", g_nametmp);
+        epm_Log(LT_WARN, "Texture in file \"%s\" has either width or height that is not a power of 2; cannot use.\n", filename);
         return NULL;
     }
     
@@ -58,7 +50,7 @@ epm_Texture *load_Texture(char const *filename) {
     r |= ((v & 0xF0F0F0F0) != 0) << 2;
     r |= ((v & 0xCCCCCCCC) != 0) << 1;
 
-    snprintf(tex->name, MAX_TEXTURE_NAME_LEN + 1, "%s", g_nametmp);
+    snprintf(tex->name, MAX_TEXTURE_NAME_LEN + 1, "%s", texname);
     tex->log2_wh = (uint8_t)r;
     tex->w = (uint16_t)pix->w;
     tex->h = (uint16_t)pix->h;
@@ -70,13 +62,12 @@ epm_Texture *load_Texture(char const *filename) {
     tex->pixarr->h = pix->h;
     
     zgl_DestroyPixelArray(pix);
-    memset(g_nametmp, '\0', MAX_TEXTURE_NAME_LEN+1);
     g_num_textures++;
     
     return tex;
 }
 
-epm_Result unload_Texture(epm_Texture *tex) {
+epm_Result epm_UnloadTexture(epm_Texture *tex) {
     tex->name[0] = '\0';
     zgl_DestroyMipMap(tex->mip);
     tex->pixarr = NULL;
@@ -87,58 +78,20 @@ epm_Result unload_Texture(epm_Texture *tex) {
     return EPM_SUCCESS;
 }
 
-epm_Result texture_index_from_name(char const *name, size_t *out_i_tex) {
-    for (size_t i_tex = 0; i_tex < g_num_textures; i_tex++) {
-        if (0 == strcmp(name, textures[i_tex].name)) {
-            *out_i_tex = i_tex;
-            return EPM_SUCCESS;
-        }
-    }
 
-    return EPM_FAILURE;
-}
-
-static char g_nametmp0[MAX_TEXTURE_NAME_LEN + 1] = {'\0'};
-static void texture_name_from_filename(char const *filename, char *tex_name) {
-    bool reading = false;
-    size_t i = 0;
-
-    size_t len = strlen(filename);
-    dibassert(len < INT_MAX);
+/* As of 2023-07-06, texture names must be the file name without the .bmp */
+int32_t epm_TextureIndexFromName(char const *texname) {
+    int32_t i_tex;
     
-    for (int i_ch = (int)len - 1; i_ch >= 0; i_ch--) {
-        if (( ! reading) && (filename[i_ch] == '.')) {
-            reading = true;
-            continue;
-        }
-        if (reading && (filename[i_ch] == '/')) {
-            break;
-        }
-        if (reading) {
-            g_nametmp0[i] = filename[i_ch];
-            i++;
+    /* TODO: Hash table? Probably doesn't matter; not enough textures. */
+    for (i_tex = 0; i_tex < (int32_t)g_num_textures; i_tex++) {
+        if (streq(texname, textures[i_tex].name)) {
+            return i_tex;
         }
     }
 
-    len = strlen(g_nametmp0);
-    dibassert(len < INT_MAX);
-    
-    for (int i_ch0 = (int)len - 1, i_ch1 = 0; i_ch0 >= 0; i_ch0--, i_ch1++) {
-        tex_name[i_ch1] = g_nametmp0[i_ch0];
-    }
-
-    memset(g_nametmp0, 0, MAX_TEXTURE_NAME_LEN+1);
-}
-
-epm_Result get_texture_by_name(char const *name, size_t *out_i_tex) {
-    for (size_t i_tex = 0; i_tex < g_num_textures; i_tex++) {
-        if (0 == strcmp(name, textures[i_tex].name)) {
-            *out_i_tex = i_tex;
-            return EPM_SUCCESS;
-        }
-    }
-
-    // texture not found in memory; try to load it
+    // texture not found in memory; try to load it. And note that if found, it's
+    // index will be i_tex's current value.
 
     char path[128] = {'\0'};
     strcpy(path, DIR_TEX);
@@ -148,35 +101,37 @@ epm_Result get_texture_by_name(char const *name, size_t *out_i_tex) {
     //zgl_GetDirListing(&dl, path);
     
     strcpy(filename, path);
-    strcat(filename, name);
+    strcat(filename, texname);
     strcat(filename, SUF_BMP);
     
-    if (load_Texture(filename)) {
-        return EPM_SUCCESS;
+    if (epm_LoadTexture(texname, filename)) {
+        return i_tex;
     }
 
     strcpy(filename, path);
     strcat(filename, "default/");
-    strcat(filename, name);
+    strcat(filename, texname);
     strcat(filename, SUF_BMP);
 
-    if (load_Texture(filename)) {
-        return EPM_SUCCESS;
+    if (epm_LoadTexture(texname, filename)) {
+        return i_tex;
     }
 
     strcpy(filename, path);
     strcat(filename, "misc/");
-    strcat(filename, name);
+    strcat(filename, texname);
     strcat(filename, SUF_BMP);
 
-    if (load_Texture(filename)) {
-        return EPM_SUCCESS;
+    if (epm_LoadTexture(texname, filename)) {
+        return i_tex;
     }
+
+    epm_Log(LT_WARN, "Texture named \"%s\" not found from file.\n", texname);
     
     return EPM_FAILURE;
 }
 
-
+/* This don't belong here. */
 void scale_texels_to_world(Fix32Vec V0, Fix32Vec V1, Fix32Vec V2, Fix32Vec_2D *TV0, Fix32Vec_2D *TV1, Fix32Vec_2D *TV2, epm_Texture *tex) {
     (void)tex;
     
@@ -297,139 +252,16 @@ void scale_quad_texels_to_world(Fix32Vec V0, Fix32Vec V1, Fix32Vec V2, Fix32Vec 
 
 
 
+#include "src/input/command.h"
 
-
-
-////////////////////////////////////////////////////////////////////////////////
-
-/*
-MipMap *mipmap;
-
-MipMap *mipify(zgl_PixelArray *pixarr) {
-    MipMap *mip = zgl_Malloc(sizeof(*mip));
-    mip->pixarr = zgl_CreatePixelArray(pixarr->w, (3*pixarr->h)/2);
-    zgl_BlitEntire(mip->pixarr, 0, 0, pixarr);
-    mip->root_w = mip->pixarr->w;
-    mip->level_ofs[0] = 0;
-    mip->num_levels = 1;
-    
-    zgl_Color *dst = mip->pixarr->pixels;
-    zgl_Color const *src = mip->pixarr->pixels;
-    zgl_Color color;
-    zgl_Color r, g, b;
-    zgl_Pixit const W = mip->pixarr->w;
-
-    int prev_size = mip->pixarr->w;
-    int curr_size = prev_size / 2;
-    int curr_level = 1;
-    dst += prev_size * prev_size;
-    mip->level_ofs[curr_level] = mip->level_ofs[curr_level-1] + prev_size*prev_size;
-    while (curr_size >= 1) {
-        mip->num_levels++;
-        for (int y = 0; y < curr_size; y++) {
-            for (int x = 0; x < curr_size; x++) {
-                r = g = b = 0;
-
-                int box_x0 = x<<curr_level;
-                int box_y0 = y<<curr_level;
-                int box_w = 1<<curr_level;
-                int box_h = 1<<curr_level;
-                for (int box_dy = 0; box_dy < box_h; box_dy++) {
-                    for (int box_dx = 0; box_dx < box_w; box_dx++) {
-                        int src_color = src[(box_x0 + box_dx) +
-                                            (box_y0 + box_dy)*W];
-                        r += r_of(src_color);
-                        g += g_of(src_color);
-                        b += b_of(src_color);
-                    }
-                }
-                r /= box_w*box_h;
-                g /= box_w*box_h;
-                b /= box_w*box_h;
-                                
-                color = (r << 16) | (g << 8) | (b << 0);
-                dst[x + y*W] = color;
-            }        
-        }
-        prev_size = curr_size;
-        curr_size = curr_size/2;
-        dst += prev_size;
-        curr_level++;
-        mip->level_ofs[curr_level] = mip->level_ofs[curr_level-1] + prev_size;
-    }
-
-    printf("Root width: %zu\n", mip->root_w);
-    printf("Num levels: %zu\n", mip->num_levels);
-    for (size_t i = 0; i < mip->num_levels; i++) {
-        printf("Level %zu: %zu\n", i, mip->level_ofs[i]);
-    }
-
-    return mip;
+static void CMDH_loadtex(int argc, char **argv, char *output_str) {
+    epm_TextureIndexFromName(argv[1]);
 }
 
+epm_Command const CMD_loadtex = {
+    .name = "loadtex",
+    .argc_min = 2,
+    .argc_max = 2,
+    .handler = CMDH_loadtex,
+};
 
-MipMap *mipify2(zgl_PixelArray *pixarr) {
-    // TODO: forbid non-powers-of-two
-
-    zgl_Color *src;
-    zgl_Color *dst;
-    zgl_Pixit src_w;
-    zgl_Pixit dst_w;
-    int level;
-    
-    MipMap *mip = zgl_Malloc(sizeof(*mip));
-    mip->root_w = pixarr->w;
-    size_t mipsize = (4*(mip->root_w)*(mip->root_w) - 1)/3;
-    mip->pixels = zgl_Calloc(mipsize, sizeof(zgl_Color));
-
-    src = pixarr->pixels;
-    dst = mip->pixels;
-    src_w = (zgl_Pixit)pixarr->w;
-    dst_w = (zgl_Pixit)mip->root_w;
-
-    mip->num_levels = 0;
-    level = 0;
-    mip->level_ofs[0] = 0;
-    while (dst_w >= 1) {
-        mip->num_levels++;
-        for (int dst_y = 0; dst_y < dst_w; dst_y++) {
-            for (int dst_x = 0; dst_x < dst_w; dst_x++) {
-                zgl_Color r, g, b;
-                r = g = b = 0;
-
-                int box_x0 = dst_x<<level;
-                int box_y0 = dst_y<<level;
-                int box_w = 1<<level;
-                int box_h = 1<<level;
-                for (int box_dy = 0; box_dy < box_h; box_dy++) {
-                    for (int box_dx = 0; box_dx < box_w; box_dx++) {
-                        int src_color = src[(box_x0 + box_dx) +
-                                            (box_y0 + box_dy)*src_w];
-                        r += r_of(src_color);
-                        g += g_of(src_color);
-                        b += b_of(src_color);
-                    }
-                }
-                r /= box_w*box_h;
-                g /= box_w*box_h;
-                b /= box_w*box_h;
-                                
-                dst[dst_x + dst_y*dst_w] = (r << 16) | (g << 8) | (b << 0);
-            }        
-        }
-
-        level++;
-        mip->level_ofs[level] = mip->level_ofs[level-1] + dst_w*dst_w;
-        dst += dst_w*dst_w;
-        dst_w /= 2;
-    }
-
-    printf("Root width: %zu\n", mip->root_w);
-    printf("Num levels: %zu\n", mip->num_levels);
-    for (size_t i = 0; i < mip->num_levels; i++) {
-        printf("Level %zu: %zu\n", i, mip->level_ofs[i]);
-    }
-
-    return mip;
-}
-*/
