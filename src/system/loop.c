@@ -20,7 +20,6 @@ epm_Result epm_Run(void) {
         if (epm_Render() == EPM_STOP) goto Stop;
 
         state.loop.frame++;
-        state.timing.global_avg_tpf = (UFix32)((state.loop.tic << 16)/(state.loop.frame));
     }
 
  Stop:

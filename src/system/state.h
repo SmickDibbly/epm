@@ -8,10 +8,9 @@
 typedef struct State {
     struct {
         bool fpscapped; // unused as of 2023-02-08
-        UFix32 global_avg_tpf;
         UFix32 local_avg_tpf;
-        UFix32 global_avg_fps;
         UFix32 local_avg_fps;
+        uint64_t global_elapsed;
     } timing;
     struct {
         uint64_t tic;
