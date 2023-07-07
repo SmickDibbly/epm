@@ -4,7 +4,6 @@
 #include "src/ntsc/crt_core.h"
 
 #include "src/draw/default_layout.h"
-#include "src/draw/textoverlay.h"
 #include "src/draw/textures.h"
 #include "src/draw/colors.h"
 
@@ -61,8 +60,6 @@ extern void init_dropdownmenu(void);
 extern void init_viewports(void);
 extern epm_Result epm_InitText(void);
 extern epm_Result epm_TermText(void);
-extern void epm_InitTextOverlay(void);
-
 
 
 epm_Result epm_InitDraw(void) {
@@ -82,7 +79,6 @@ epm_Result epm_InitDraw(void) {
     if (EPM_SUCCESS != epm_InitText()) {
         return EPM_FAILURE;
     }
-    epm_InitTextOverlay();
     epm_Result init_Draw3D(void);
     init_Draw3D();
 
@@ -191,10 +187,6 @@ epm_Result epm_Render(void) {
    
     draw_WindowTree(root_node);
     
-    if (show_textoverlay) {
-        epm_DrawTextOverlay();
-    }
-
 #ifdef TWO_FRAMEBUFFER
     /* Do something with the combination of current and previous frame. */
     for (size_t i_pixel = 0; i_pixel < g_scr->w*g_scr->h; i_pixel++) {
