@@ -177,6 +177,13 @@ static ViewbarButton const btn_3D = {
 };
 
 
+static ViewbarSpec barspec_Monitor = {
+    .icon = icon_logview,
+    .num_subbtns = 0,
+    //    .subbtns = {},
+    .num_relbtns = 0,
+    //    .relbtns = {},
+};
 static ViewbarSpec barspec_World3D = {
     .icon = icon_3Dview_on,
     .num_subbtns = 3,
@@ -260,6 +267,9 @@ void draw_viewbar(Window *win) {
     ViewbarSpec *barspec;
     
     switch (p_VP->mapped_p_VPI->i_VPI) {
+    case VPI_MONITOR:
+        barspec = &barspec_Monitor;
+        break;
     case VPI_WORLD3D:
         barspec = &barspec_World3D;
         break;
