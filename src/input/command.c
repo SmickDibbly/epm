@@ -6,6 +6,8 @@
 static Index *cmd_index;
 
 static epm_Command const *cmds[] = {
+    &CMD_setfps,
+    
     &CMD_quit,
     &CMD_log,
 
@@ -33,6 +35,7 @@ static epm_Command const *cmds[] = {
     
     &CMD_apply_texture,
     &CMD_select_all_brush_faces,
+    &CMD_loadtex,
 
     &CMD_brush_from_frame,
     &CMD_set_frame,

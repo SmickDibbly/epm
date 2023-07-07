@@ -3,6 +3,8 @@
 
 #include "src/input/command.h"
 
+extern epm_Command const CMD_setfps;
+
 extern epm_Command const CMD_quit;
 extern epm_Command const CMD_log;
 
@@ -42,6 +44,7 @@ extern epm_Command const CMD_readworld;
 extern epm_Command const CMD_apply_texture;
 extern epm_Command const CMD_select_all_brush_faces;
 
+extern epm_Command const CMD_loadtex;
 
 /* -------------------------------------------------------------------------- */
 // Geometry-related.

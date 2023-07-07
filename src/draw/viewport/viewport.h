@@ -68,6 +68,8 @@ typedef enum VPLayoutCode {
 
 typedef enum VPInterfaceCode {
     VPI_NONE,
+
+    VPI_MONITOR,
     
     VPI_WORLD3D,
     VPI_WORLDTOP,
