@@ -22,13 +22,46 @@ This is an open-ended hobby project. As such, I don't know where it is going in 
 - No GPU support.
 
 # Building
-On a linux-kernel OS, from the zigil/build/ directory, run the shell command:
+
+These instructions are for linux-kernel OSes. Only tested on Ubuntu as of 2023-07-07.
+
+# File structure
+
+You need both Zigil and EPM. Ensure that the root directories for both Zigil and EPM are in the same directory. Ensure that the Zigil directory is called "zigil" and the EPM directory is called "epm".
+
+## Build Zigil
+
+In short, starting from zigil/build/:
+
+```
+make --file=linux.mk
+make --file=linux.mk install
+cd ../../epm/build/
+make --file=linux.mk
+./epm
+```
+
+From the zigil/build/ directory, run the shell command:
 
 ```Shell
 make --file=linux.mk
 ```
 
-This will create zigil/build/linux/libzigil.a, to be linked to other projects at your leisure. The API consists of all the header files in zigil/src/ (header files from any further subdirectories thereof are not part of the API).
+Optionally, check that the file zigil/build/linux/libzigil.a has been created. To make Zigil available to EPM, it should be enough to run the shell command from zigil/build/:
+
+```Shell
+make --file=linux.mk install
+```
+
+which copies the libzigil.a and the Zigil API header files to a special subdirectory of the root EPM directory. Finally, change working directory to epm/build and run:
+
+```Shell
+make --file=linux.mk
+```
+
+If this has worked, you should now be able to run EPM simply with:
+
+```./epm```
 
 # Links
 Discord: https://discord.gg/KUmMRdd4bM
