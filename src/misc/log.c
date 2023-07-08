@@ -46,6 +46,8 @@ static struct tm *utc_time;
 static char utc_str[MAX_UTC_LEN + 1] = {'\0'};
 
 epm_Result epm_InitLog(void) {
+    zgl_MakeDir(DIR_LOG); // make log directory if not present
+    
     initialize_StringList(&loglist);
     
     gen_fp = fopen(gen_filename, "w");
