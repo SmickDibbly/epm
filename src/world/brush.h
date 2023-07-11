@@ -74,10 +74,8 @@ typedef struct BrushQuadFace2 {
 /* -------------------------------------------------------------------------- */
 // Generic Brush Container
 
-
 typedef enum BrushType {
     BT_CUBOID,
-    BT_CYLINDER,
 
     NUM_BT
 } BrushType;
@@ -114,7 +112,7 @@ void init_Brush(Brush *nonNULL_brush, WorldVec POR, int CSG);
 /* -------------------------------------------------------------------------- */
 // Specific Brush Geometry
 
-typedef struct ComplexBrush {
+typedef struct GenericBrush {
     Brush *brush;
     
     size_t num_vertices;
@@ -123,9 +121,9 @@ typedef struct ComplexBrush {
     size_t num_edges;
     Edge *edges;
     
-    size_t num_quads;
-    BrushQuadFace *quads;
-} ComplexBrush;
+    size_t num_polys;
+    BrushPoly *polys;
+} GenericBrush;
 
 
 #define NUM_VERTICES_CUBOID 8
@@ -152,27 +150,6 @@ extern Brush *create_CuboidBrush(WorldVec origin, int CSG, UFix32 dx, UFix32 dy,
 extern Brush *new_CuboidBrush(void);
 extern void destroy_CuboidBrush(Brush *brush);
 
-typedef struct CylinderBrush {
-    zgl_Color wirecolor;
-    int CSG;
-
-    WorldVec origin;
-    UFix32 radius;
-    
-    size_t num_sides;
-
-    size_t num_vertices;
-    WorldVec *vertices;
-    
-    size_t num_edges;
-    Edge *edges;
-
-    size_t num_faces;
-    Face *faces;
-} CylinderBrush;
-
-
-
 /* -------------------------------------------------------------------------- */
 // The Brush Frame
 
@@ -180,6 +157,9 @@ extern Brush *frame;
 
 extern void set_frame(BrushType type, /*parameters*/ WorldUnit dx, WorldUnit dy, WorldUnit dz);
 
+extern GenericBrush *set_cuboid_frame(WorldVec v, WorldVec dv);
+extern GenericBrush *set_cylinder_frame(WorldVec v, WorldUnit radius, size_t num_sides);
+extern GenericBrush *set_pyramid_frame(WorldVec v, WorldUnit base, WorldUnit height);
 
 /* -------------------------------------------------------------------------- */
 // The linked list of all brushes.
