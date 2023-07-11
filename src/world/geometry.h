@@ -238,18 +238,21 @@ typedef struct EditorPolyData {
 } EditorPolyData;
 
 struct Poly {
-    uint8_t polyflags;
-    
+    // authoring data
+    void *brushface;
+
+    // vertex attributes
     size_t num_v;
     size_t *i_v;
-
-    WorldVec normal;
-    uint8_t brightness;
+    Fix32Vec_2D vtxl;
+    uint8_t vbri;
     
+    // face attributes
+    WorldVec normal;
     size_t i_tex;
-    zgl_mPixel *tx;
-
-    EditorPolyData ed;
+    uint8_t fbri;
+    
+    uint8_t flags;
 };
 
 struct Poly3 {
