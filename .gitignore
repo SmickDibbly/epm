@@ -8,6 +8,7 @@ assets/worlds/*
 assets/textures/makkon/
 debug/
 zigil/
+logs/
 references/
 build/linux/
 build/windows/
