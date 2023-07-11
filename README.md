@@ -1,28 +1,37 @@
 # EPM
-This is an attempt to "make a game from scratch": a graphics library (Zigil), a game engine (Pentacle Engine), an editor (Pentacle Editor) for making game assets, and an actual game. Collectively I refer to these as EPM.
+This is a hobby project with a very loosely defined goal of "make a program for designing interesting spaces." As 2023-07-09, EPM is best described as a mesh viewer with limited editing ability.
+
+All platform-dependent code is encapsulated in a different project called Zigil (Zed's Intermediary Graphics and Input Library).
 
 EPM is provided under the MIT license. See LICENSE.txt in the repository root directory for details.
 
-# What does the name mean?
-EPM stands for "Electric Pentacle Machine", which is just a cool-sounding name based on a series of short horror stories by William Hope Hodgson, featuring a paranormal investigator named Carnacki who uses an eletricity-enhanced "pentacle" (think pentagram) as a tool of his trade. I chose this name because it fits the magical aesthetic of many games I like while still having a modern element to it. And because Google turned up almost no results for it, it is quite unique.
+I discourage the use of EPM for or in association with NFTs, Web3.0, cryptocurrency, machine learning, AI art, or AI-aided image generation, including promotional material. I may choose to expressly forbid such use in future versions of the license.
+
+# What does EPM stand for?
+EPM stands for "Electric Pentacle Machine", which is just a cool-sounding name based on a series of short horror stories by William Hope Hodgson, featuring a paranormal investigator named Carnacki who uses an eletricity-enhanced "pentacle" (think pentagram) as a tool of his trade. I chose this name because it fits the magical aesthetic of many games I like while still having a modern element to it, but this doesn't imply any particular theme or style upon EPM software. I will likely force-fit a new meaning to EPM when I think of one.
 
 # What is the point?
-When I was a kid I liked playing around in Unreal Editor 2.0, making bad modifications to the good maps that came with Unreal Tournament (1999). I didn't understand most of the tools in the editor but I could make box shaped rooms, cylinders, stairs, I could change wall textures, and I could place lights at random places until it looked okay. But what was BSP? What was CSG? What was "ambient occlusion"? Lightmaps? Pathnodes? "Extrude to bevel"? It all seemed impossible to comprehend. Twenty years later I still don't understand most of these concepts, but now I am prepared to learn. And what better way to learn than to create? 
+- I enjoy programming.
+- I like large, long-term projects that require a tremendous effort.
+- I am curious to find out how far the NIH mindset can really take me.
 
 # What is the plan?
-This is an open-ended hobby project. As such, I don't know where it is going in the long term. I'd be satisfied if I could make an editor superficially similar to the Unreal Editor 2.0 of my childhood. I'd like to be able to design a game-world by placing and modifying geometric "brushes", which then get processed and transformed into an actual playable game-world.
+This is an open-ended hobby project. As such, I don't know where it is going in the very long term. It would be nice if I could synthesize my favorite features of Unreal Editor 2.0, DoomBuilder, and Emacs.
 
-# Notable features
-- Written in C99.
-- Software rasterization.
-- Support for *binary space partitioning* to aid in rendering and collision (collision not implemented yet).
+# Notable states
+- Lanuage: C99.
+- Graphics: software rasterization (CPU)
+- Support for *binary space partitioning* to aid in rendering (and eventually collision and more!).
+- Basic windowing system.
 
-# Notable antifeatures
-- No floating point types in the code (almost... sometimes I get lazy if I just need to print a ratio of integers).
+# Notable constraints
+- Integer-only (i.e. fixed-point) math.*
+- No math.h
 - No GPU support.
 
-# Building
+* As of 2023-07-09 there are a few places where floating types are used to help in debugging, but I intend to end this practice.
 
+# Building
 These instructions are for linux-kernel OSes. Only tested on Ubuntu as of 2023-07-07.
 
 You need both Zigil and EPM. Ensure that the root directories for both Zigil and EPM are in the same directory. Ensure that the Zigil directory is called "zigil" and the EPM directory is called "epm".
