@@ -4,7 +4,7 @@
 #include "src/interface/interface_registry.h"
 
 //#define VERBOSITY
-#include "src/locallibs/verbosity.h"
+#include "zigil/diblib_local/verbosity.h"
 
 ViewportInterface default_vpi = {
     .i_VPI = VPI_NONE,

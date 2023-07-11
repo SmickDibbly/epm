@@ -3,7 +3,7 @@
 
 #include <limits.h>
 
-#include "src/locallibs/fixpt.h"
+#include "zigil/diblib_local/fixpt.h"
 
 #define MASK64(X) ((X) >> (sizeof(int64_t) * CHAR_BIT - 1))
 #define MASK32(X) ((X) >> (sizeof(int32_t) * CHAR_BIT - 1))

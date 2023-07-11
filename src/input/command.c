@@ -1,4 +1,4 @@
-#include "src/locallibs/dibhash.h"
+#include "zigil/diblib_local/dibhash.h"
 
 #include "src/input/command.h"
 #include "src/input/command_registry.h"

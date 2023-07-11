@@ -1,4 +1,4 @@
-#include "src/locallibs/dibhash.h"
+#include "zigil/diblib_local/dibhash.h"
 
 #include "src/misc/epm_includes.h"
 #include "src/system/dir.h"
@@ -6,7 +6,7 @@
 #include "src/system/config_reader.h"
 
 //#define VERBOSITY
-#include "src/locallibs/verbosity.h"
+#include "zigil/diblib_local/verbosity.h"
 
 #undef LOG_LABEL
 #define LOG_LABEL "SYS.CONFIG"

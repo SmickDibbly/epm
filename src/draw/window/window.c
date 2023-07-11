@@ -3,7 +3,7 @@
 #include "src/draw/window/window.h"
 
 //#define VERBOSITY
-#include "src/locallibs/verbosity.h"
+#include "zigil/diblib_local/verbosity.h"
 
 extern WindowNode *unlink_WindowNode(WindowNode *node);
 extern WindowNode *link_WindowNode(WindowNode *node, WindowNode *parent);

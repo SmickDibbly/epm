@@ -5,7 +5,7 @@
 #include "src/world/brush.h"
 
 //#define VERBOSITY
-#include "src/locallibs/verbosity.h"
+#include "zigil/diblib_local/verbosity.h"
 
 #undef LOG_LABEL
 #define LOG_LABEL "WORLD"

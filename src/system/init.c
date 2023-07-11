@@ -1,4 +1,4 @@
-#include "src/locallibs/dibhash.h"
+#include "zigil/diblib_local/dibhash.h"
 
 #include "src/misc/epm_includes.h"
 #include "src/system/dir.h"
@@ -89,7 +89,7 @@ epm_Result epm_Init(int argc, char *argv[]) {
     
     set_active_log_group(LG_GENERAL);
 
-    print_all_HashTable(); // temporary
+    //print_all_HashTable(); // temporary
     
     return EPM_SUCCESS;
 }

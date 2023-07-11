@@ -41,9 +41,9 @@ typedef int epm_Result;
 
 #include "src/misc/log.h"
 #include "src/misc/mathematics.h"
-#include "src/locallibs/fixpt.h"
-#include "src/locallibs/dibassert.h"
-#include "src/locallibs/dibstr.h"
+#include "zigil/diblib_local/fixpt.h"
+#include "zigil/diblib_local/dibassert.h"
+#include "zigil/diblib_local/dibstr.h"
 
 
 /*

@@ -6,7 +6,7 @@
 #include "src/draw/textures.h"
 
 //#define VERBOSITY
-#include "src/locallibs/verbosity.h"
+#include "zigil/diblib_local/verbosity.h"
 
 #ifdef VERBOSITY
 static void print_cgltf_data(FILE *out_fp, cgltf_data *data);

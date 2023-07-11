@@ -307,7 +307,7 @@ extern void print_BSPCutData(BSPCutData const *data);
 #  define print_BSPCutData(data) (void)0
 #endif
 
-#include "src/locallibs/verbosity.h"
+#include "zigil/diblib_local/verbosity.h"
 
 
 /* -------------------------------------------------------------------------- */

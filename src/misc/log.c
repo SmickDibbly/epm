@@ -9,7 +9,7 @@ char bigbuf[BIGBUF_LEN+1] = {0};
 
 #define EPM_USE_COLORS_IN_STDOUT
 #ifdef EPM_USE_COLORS_IN_STDOUT
-# include "term_colors.h"
+# include "zigil/diblib_local/term_colors.h"
 #endif
 
 #define MAX_STREAMS_PER_LOG 4

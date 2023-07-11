@@ -5,7 +5,7 @@
 #include "src/input/input.h"
 #include "src/input/dpad.h"
 
-#include "src/locallibs/dibhash.h"
+#include "zigil/diblib_local/dibhash.h"
 #include "src/misc/epm_includes.h"
 #include "src/system/state.h"
 #include "src/draw/window/window_registry.h"

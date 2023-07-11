@@ -1,5 +1,5 @@
 #include "zigil/zigil.h"
-#include "src/locallibs/dibhash.h"
+#include "zigil/diblib_local/dibhash.h"
 
 #include "src/misc/epm_includes.h"
 #include "src/system/term_registry.h"
