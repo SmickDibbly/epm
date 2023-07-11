@@ -61,6 +61,36 @@ void link_brush(Brush *brush) {
     node->brush = brush;
 }
 
+GenericBrush *set_cuboid_frame(WorldVec v, WorldVec dv) {
+    // 1) Free old frame.
+
+    // 2) Make new frame.
+
+    // 3) Apply parameters.
+    WorldUnit x = x_of(v);
+    WorldUnit y = y_of(v);
+    WorldUnit z = z_of(v);
+    WorldUnit dx = x_of(dv);
+    WorldUnit dy = y_of(dv);
+    WorldUnit dz = z_of(dv);
+    
+    GenericBrush *brush = zgl_Malloc(sizeof(*brush));
+    brush->num_vertices = 8;
+    brush->vertices = zgl_Malloc(8*sizeof(*brush->vertices));
+    WorldVec *vertices = brush->vertices;
+
+    vertices[0] = (WorldVec){{x   , y   , z   }};
+    vertices[1] = (WorldVec){{x+dx, y   , z   }};
+    vertices[2] = (WorldVec){{x+dx, y+dy, z   }};
+    vertices[3] = (WorldVec){{x   , y+dy, z   }};
+    vertices[4] = (WorldVec){{x   , y   , z+dz}};
+    vertices[5] = (WorldVec){{x+dx, y   , z+dz}};
+    vertices[6] = (WorldVec){{x+dx, y+dy, z+dz}};
+    vertices[7] = (WorldVec){{x   , y+dy, z+dz}};
+
+    return brush;
+}
+
 
 void set_frame_size(BrushType type, /*parameters*/ WorldUnit dx, WorldUnit dy, WorldUnit dz) {
     dibassert(type == BT_CUBOID);
@@ -82,11 +112,6 @@ void brush_from_frame(int CSG, int BSP, char *name) {
         brush->type = BT_CUBOID;
         memcpy(Cuboid_of(brush), Cuboid_of(frame), sizeof(*Cuboid_of(brush)));
         Cuboid_of(brush)->container = brush;
-    }
-        break;
-    case BT_CYLINDER: {
-        dibassert(false); // not supported yet
-        // brush = create_uninitialized_CylinderBrush();
     }
         break;
     default:
