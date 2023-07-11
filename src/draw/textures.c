@@ -15,6 +15,16 @@ size_t g_num_textures = 0;
 epm_Texture textures[MAX_TEXTURES] = {0};
 static zgl_PixelArray texture_pix[MAX_TEXTURES] = {0};
 
+static void add_missing_texture(char const *texname) {
+    epm_Texture *tex = &textures[g_num_textures];
+
+    *tex = textures[0];
+    snprintf(tex->name, MAX_TEXTURE_NAME_LEN + 1, "%s", texname);
+    tex->flags |= TEXFL_NOTFOUND;
+
+    g_num_textures++;
+}
+
 epm_Texture *epm_LoadTexture(char const *texname, char const *filename) {
     epm_Texture *tex = &textures[g_num_textures];
         
@@ -127,8 +137,10 @@ int32_t epm_TextureIndexFromName(char const *texname) {
     }
 
     epm_Log(LT_WARN, "Texture named \"%s\" not found from file.\n", texname);
+
+    add_missing_texture(texname);
     
-    return EPM_FAILURE;
+    return i_tex;
 }
 
 /* This don't belong here. */

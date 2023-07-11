@@ -7,6 +7,8 @@
 
 #define MAX_TEXTURE_NAME_LEN 63
 
+
+#define TEXFL_NOTFOUND 0x01
 // as of 2023-04-01 the epm_Texture struct is just a wrapper around a
 // zgl_PixelArray; the only extra data is a NAME field.
 typedef struct epm_Texture {
@@ -17,6 +19,7 @@ typedef struct epm_Texture {
                    // constant, say 256, 512, or 1024
     zgl_PixelArray *pixarr;
     zgl_MipMap *mip;
+    uint8_t flags;
 } epm_Texture;
 
 #define MAX_TEXTURES 64
