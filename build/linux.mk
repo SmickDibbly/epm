@@ -5,21 +5,33 @@ BUILDDIR  = $(PROJDIR)/build/linux
 
 ZIGIL_H_DIR = $(PROJDIR)/zigil
 ZIGIL_A_DIR = $(PROJDIR)/zigil
+DIBLIB_H_DIR = $(ZIGIL_H_DIR)/diblib_local
 
 VERBOSE = #TRUE
 
-DIRS = misc system draw draw/window draw/viewport interface entity input ntsc world world/bsp world/gltf #locallibs
+DIRS = \
+draw \
+draw/viewport \
+draw/window \
+entity \
+input \
+interface \
+misc \
+system \
+world \
+world/bsp \
+world/gltf
 SOURCEDIRS = $(foreach dir, $(DIRS), $(addprefix $(SOURCEDIR)/, $(dir)))
 TARGETDIRS = $(foreach dir, $(DIRS), $(addprefix $(BUILDDIR)/, $(dir)))
 
 INCLUDES = $(foreach dir, $(SOURCEDIRS), $(addprefix -I, $(dir))) \
--I$(ZIGIL_H_DIR) -I$(ZIGIL_H_DIR)/diblib_local -I$(PROJDIR)
-
-VPATH = $(SOURCEDIRS)
+-I$(ZIGIL_H_DIR) -I$(DIBLIB_H_DIR) -I$(PROJDIR)
 
 SOURCES = $(foreach dir, $(SOURCEDIRS), $(wildcard $(dir)/*.c))
 OBJS := $(subst $(SOURCEDIR), $(BUILDDIR), $(SOURCES:.c=.o))
 DEPS = ${OBJS:.o=.d}
+
+VPATH = $(SOURCEDIRS)
 
 GPROF_CFLAGS  = #-pg
 GPROF_LDFLAGS = #-pg
@@ -45,22 +57,11 @@ $(GPROF_CFLAGS)
 LDFLAGS = -L$(ZIGIL_A_DIR) $(SANITIZE_LDFLAGS) $(GPROF_LDFLAGS)
 LDLIBS = -lzigil -lX11 -lXext -lm
 
-#-lbfio -ldibstr -ldibhash -lfixpt
-
-# Haven't actually tested this on windows
-#ifeq ($(OS), Windows_NT)
-#	RM = del /F /Q
-#	RMDIR = -RMDIR /S /Q
-#	MKDIR = -mkdir
-#	ERRIGNORE = 2>NUL || true
-#	SEP=\\
-#else
-	RM = rm -rf
-	RMDIR = rm -rf
-	MKDIR = mkdir -p
-	ERRIGNORE = 2>/dev/null
-	SEP=/
-#endif
+RM = rm -rf
+RMDIR = rm -rf
+MKDIR = mkdir -p
+ERRIGNORE = 2>/dev/null
+SEP=/
 
 PSEP = $(strip $(SEP))
 
@@ -76,9 +77,9 @@ $(1)/%.o: %.c
 	$$(HIDE)$$(CC) $$(CFLAGS) -c $$(INCLUDES) -o $$(subst /,$$(PSEP),$$@) $$(subst /,$$(PSEP),$$<)
 endef
 
-.PHONY: all clean directories
+.PHONY: all clean dirs
 
-all: directories $(TARGET)
+all: dirs $(TARGET)
 
 $(TARGET): $(OBJS)
 	$(HIDE)echo Linking $@
@@ -88,7 +89,7 @@ $(TARGET): $(OBJS)
 
 $(foreach targetdir, $(TARGETDIRS), $(eval $(call generateRules, $(targetdir))))
 
-directories:
+dirs:
 	$(HIDE)$(MKDIR) $(subst /,$(PSEP),$(TARGETDIRS)) $(ERRIGNORE)
 
 clean:
