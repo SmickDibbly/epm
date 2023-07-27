@@ -177,17 +177,17 @@ void print_BSPTree_diagram(BSPNode const *node, uint32_t level) {
     print_BSPTree_diagram(node->back,  level + 1);
 }
 
-void print_BSPTree(BSPTree const *tree) {
+void print_BSPTree_summary(BSPTree const *tree) {
     if (tree == NULL) return;
     
-    vbs_printf(" BSP Summary\n");
-    vbs_printf("+-----------+\n");
-    vbs_printf("# Progenitor Vertices: %zu\n", tree->num_gen_vertices);
-    vbs_printf("   # Progenitor Faces: %zu\n", tree->num_gen_faces);
-    vbs_printf("           # Vertices: %zu\n", tree->num_vertices);
-    vbs_printf("              # Nodes: %zu\n", tree->num_nodes);
-    vbs_printf("              # Faces: %zu\n", tree->num_faces);
-    vbs_printf("               # Cuts: %zu\n", tree->num_cuts);
+    vbs_printf("   BSP Summary   \n");
+    vbs_printf("+---------------+\n");
+    vbs_printf("# Input Vertices: %zu\n", tree->num_gen_vertices);
+    vbs_printf("   # Input Faces: %zu\n", tree->num_gen_faces);
+    vbs_printf("      # Vertices: %zu\n", tree->num_vertices);
+    vbs_printf("         # Nodes: %zu\n", tree->num_nodes);
+    vbs_printf("         # Faces: %zu\n", tree->num_faces);
+    vbs_printf("          # Cuts: %zu\n", tree->num_cuts);
 }
 
 void print_BSPFaces(size_t num, BSPFace const *bsp_faces, Face const *faces) {

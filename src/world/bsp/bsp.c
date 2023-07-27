@@ -49,20 +49,60 @@
 #undef LOG_LABEL
 #define LOG_LABEL "BSP"
 
-void destroy_BSPTree(BSPTree *p_tree) {
-    //    zgl_Free(p_tree->vbris);
-    zgl_Free(p_tree->vertices);
-    zgl_Free(p_tree->edges);
-    zgl_Free(p_tree->nodes);
-    zgl_Free(p_tree->faces);
-    zgl_Free(p_tree->bsp_faces);
+static BSPTree const initial_BSPTree = {
+    .num_leaves = 0,
+    .num_cuts = 0,
+    
+    .max_node_depth = 0,
+    .avg_node_depth = 0.0,
+    .avg_leaf_depth = 0.0,
+    .balance        = 0.0,
+    
+    .num_verts = 0,
+    .verts = NULL,
+    .vert_exts = NULL,
+    .vert_clrs = NULL,
+    
+    .num_edges = 0,
+    .edges = NULL,
+    .edge_clrs = NULL,
 
-    p_tree->nodes = NULL;
-    //    p_tree->vbris = NULL;
-    p_tree->vertices = NULL;
-    p_tree->edges = NULL;
-    p_tree->faces = NULL;
-    p_tree->bsp_faces = NULL;
+    .num_faces = 0,
+    .faces = NULL,
+    .face_exts = NULL,
+    .face_clrs = NULL,
+
+    .num_nodes = 0,
+    .nodes = NULL,
+
+    
+    .num_pre_verts = 0,
+    .pre_verts = NULL,
+    .pre_vert_exts = NULL,
+    
+    .num_pre_edges = 0,
+    .pre_edges = NULL,
+
+    .num_pre_faces = 0,
+    .pre_faces = NULL,
+    .pre_face_exts = NULL,
+};
+
+void destroy_BSPTree(BSPTree *p_tree) {
+    zgl_Free(p_tree->verts);
+    zgl_Free(p_tree->vert_exts);
+    zgl_Free(p_tree->vert_clrs);
+
+    zgl_Free(p_tree->edges);
+    zgl_Free(p_tree->edge_clrs);
+
+    zgl_Free(p_tree->faces);
+    zgl_Free(p_tree->face_exts);
+    zgl_Free(p_tree->face_clrs);
+    
+    zgl_Free(p_tree->nodes);
+    
+    *p_tree = initial_BSPTree;
 }
 
 
@@ -90,25 +130,30 @@ void measure_BSPTree(BSPTree *p_tree) {
     p_tree->avg_leaf_depth = (double)g_total_leaf_depth / (double)g_num_leaves;
     p_tree->balance = p_tree->avg_leaf_depth / log2((double)p_tree->num_nodes);
     
-    snprintf(bigbuf, BIGBUF_LEN,
-             "      BSP Profile      \n"
-             "+---------------------+\n"
-             "# Progenitor Vertices | %zu\n"
-             "           # Vertices | %zu\n"
-             "                      |    \n"
-             "   # Progenitor Faces | %zu\n"
-             "              # Faces | %zu\n"
-             "               # Cuts | %zu\n"
-             "                      |    \n"
-             "              # Nodes | %zu\n"
-             "             # Leaves | %zu\n"
-             "            Max Depth | %zu\n"
-             "       Avg Node Depth | %lf\n"
-             "       Avg Leaf Depth | %lf\n"
-             "              Balance | %lf\n",
-             p_tree->num_gen_vertices,
-             p_tree->num_vertices,
-             p_tree->num_gen_faces,
+snprintf(bigbuf, BIGBUF_LEN,
+             "    BSP Profile   \n"
+             "+----------------+\n"
+             "# Input Vertices | %zu\n"
+             "      # Vertices | %zu\n"
+             "                 |    \n"
+             "   # Input Edges | %zu\n"
+             "         # Edges | %zu\n"
+             "                 |    \n"
+             "   # Input Faces | %zu\n"
+             "         # Faces | %zu\n"
+             "          # Cuts | %zu\n"
+             "                 |    \n"
+             "         # Nodes | %zu\n"
+             "        # Leaves | %zu\n"
+             "       Max Depth | %zu\n"
+             "  Avg Node Depth | %lf\n"
+             "  Avg Leaf Depth | %lf\n"
+             "         Balance | %lf\n",
+             p_tree->num_pre_verts,
+             p_tree->num_verts,
+             p_tree->num_pre_edges,
+             p_tree->num_edges,
+             p_tree->num_pre_faces,
              p_tree->num_faces,
              p_tree->num_cuts,
              p_tree->num_nodes,
@@ -120,7 +165,6 @@ void measure_BSPTree(BSPTree *p_tree) {
 
     puts(bigbuf);
 
-    vbs_printf("(Expected %zu) (Actual %i)\n", p_tree->num_faces, g_num_faces);
     dibassert((int)p_tree->num_faces == g_num_faces);
 }
 
@@ -140,27 +184,6 @@ static void measure_BSPTree_recursion(BSPNode *node, int depth) {
     measure_BSPTree_recursion(node->back,  depth+1);
 }
 
-/*
-void add_incidence_node(Maker_SharedEdge *msh_edge, Maker_BSPFace *mbsp_face) {
-    if (msh_edge->num_incidence_nodes == 0) {
-        dibassert(msh_edge->head_node == NULL && msh_edge->tail_node == NULL);
-        msh_edge->head_node = zgl_Malloc(sizeof(*msh_edge->head_node));
-        msh_edge->head_node->next = NULL;
-        msh_edge->head_node->mbsp_face = mbsp_face;
-        msh_edge->tail_node = msh_edge->head_node;
-        msh_edge->num_incidence_nodes++;
-    }
-    else {
-        dibassert(msh_edge->tail_node != NULL);
-        msh_edge->tail_node->next = zgl_Malloc(sizeof(*msh_edge->tail_node->next));
-        msh_edge->tail_node->next->next = NULL;
-        msh_edge->tail_node->next->mbsp_face = mbsp_face;
-        msh_edge->tail_node = msh_edge->tail_node->next;
-        msh_edge->num_incidence_nodes++;
-    }
-}
-*/
-
 static void CMDH_measure_BSPTree(int argc, char **argv, char *output_str) {
     measure_BSPTree(g_world.geo_bsp);
     
@@ -174,3 +197,82 @@ epm_Command const CMD_measure_BSPTree = {
     .argc_max = 1,
     .handler = CMDH_measure_BSPTree,
 };
+
+
+void sprint_BSPTree(BSPTree const *tree) {
+    if (tree == NULL) return;
+    
+    snprintf(bigbuf, BIGBUF_LEN,
+             "    BSP Profile   \n"
+             "+----------------+\n"
+             "# Input Vertices | %zu\n"
+             "      # Vertices | %zu\n"
+             "                 |    \n"
+             "   # Input Edges | %zu\n"
+             "         # Edges | %zu\n"
+             "                 |    \n"
+             "   # Input Faces | %zu\n"
+             "         # Faces | %zu\n"
+             "          # Cuts | %zu\n"
+             "                 |    \n"
+             "         # Nodes | %zu\n"
+             "        # Leaves | %zu\n"
+             "       Max Depth | %zu\n"
+             "  Avg Node Depth | %lf\n"
+             "  Avg Leaf Depth | %lf\n"
+             "         Balance | %lf\n",
+             tree->num_pre_verts,
+             tree->num_verts,
+             tree->num_pre_edges,
+             tree->num_edges,
+             tree->num_pre_faces,
+             tree->num_faces,
+             tree->num_cuts,
+             tree->num_nodes,
+             tree->num_leaves,
+             tree->max_node_depth,
+             tree->avg_node_depth,
+             tree->avg_leaf_depth,
+             tree->balance);
+
+    puts(bigbuf);
+}
+
+void print_BSPTree(BSPTree const *tree) {
+    if (tree == NULL) return;
+    
+    snprintf(bigbuf, BIGBUF_LEN,
+             "    BSP Profile   \n"
+             "+----------------+\n"
+             "# Input Vertices | %zu\n"
+             "      # Vertices | %zu\n"
+             "                 |    \n"
+             "   # Input Edges | %zu\n"
+             "         # Edges | %zu\n"
+             "                 |    \n"
+             "   # Input Faces | %zu\n"
+             "         # Faces | %zu\n"
+             "          # Cuts | %zu\n"
+             "                 |    \n"
+             "         # Nodes | %zu\n"
+             "        # Leaves | %zu\n"
+             "       Max Depth | %zu\n"
+             "  Avg Node Depth | %lf\n"
+             "  Avg Leaf Depth | %lf\n"
+             "         Balance | %lf\n",
+             tree->num_pre_verts,
+             tree->num_verts,
+             tree->num_pre_edges,
+             tree->num_edges,
+             tree->num_pre_faces,
+             tree->num_faces,
+             tree->num_cuts,
+             tree->num_nodes,
+             tree->num_leaves,
+             tree->max_node_depth,
+             tree->avg_node_depth,
+             tree->avg_leaf_depth,
+             tree->balance);
+
+    puts(bigbuf);
+}

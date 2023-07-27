@@ -33,7 +33,7 @@ static size_t add_face_to_tree
 static size_t add_face_to_tree0
 (size_t i_v0, size_t i_v1, size_t i_v2,
  size_t i_e0, size_t i_e1, size_t i_e2,
- bool from_cut, uint32_t i_gen_face);
+ bool from_cut, uint32_t i_pre_face);
 */
 
 static size_t add_face_to_subset
@@ -164,8 +164,8 @@ void choose_splitting_plane(BSPSubset *p_subset, BSPCutData *out_data) {
         size_t i_f = subFs[i_subF].i_f;
             
         WorldVec
-            planeV = g_gen.vertices[g_gen.faces[g_maker_tree.mbsp_faces[i_f].i_gen_face].i_v[0]],
-            planeN = g_gen.faces[g_maker_tree.mbsp_faces[i_f].i_gen_face].normal;
+            planeV = g_gen.verts[g_gen.faces[g_maker_tree.mbsp_faces[i_f].i_pre_face].i_v[0]],
+            planeN = g_gen.faces[g_maker_tree.mbsp_faces[i_f].i_pre_face].normal;
 
         compute_VSRs(planeV, planeN,
                      num_subV, subVs,
@@ -617,8 +617,8 @@ void cut_type1(FaceCutData *fcd) {
     front_f.flags = f->flags | MF_FROM_CUT;
     back_f.flags  = f->flags | MF_FROM_CUT;
     
-    front_f.i_gen_face = f->i_gen_face;
-    back_f.i_gen_face  = f->i_gen_face;
+    front_f.i_pre_face = f->i_pre_face;
+    back_f.i_pre_face  = f->i_pre_face;
 
     front_f.next_in_node = NULL;
     back_f.next_in_node = NULL;
@@ -840,9 +840,9 @@ void cut_type2f(FaceCutData *fcd) {
     front1_f.flags = f->flags | MF_FROM_CUT;
     back_f.flags   = f->flags | MF_FROM_CUT;
 
-    front0_f.i_gen_face = f->i_gen_face;
-    front1_f.i_gen_face = f->i_gen_face;
-    back_f.i_gen_face   = f->i_gen_face;
+    front0_f.i_pre_face = f->i_pre_face;
+    front1_f.i_pre_face = f->i_pre_face;
+    back_f.i_pre_face   = f->i_pre_face;
 
     front0_f.next_in_node = NULL;
     front1_f.next_in_node = NULL;
@@ -1066,9 +1066,9 @@ void cut_type2b(FaceCutData *fcd) {
     back0_f.flags = f->flags | MF_FROM_CUT;
     back1_f.flags = f->flags | MF_FROM_CUT;
 
-    front_f.i_gen_face = f->i_gen_face;
-    back0_f.i_gen_face = f->i_gen_face;
-    back1_f.i_gen_face = f->i_gen_face;
+    front_f.i_pre_face = f->i_pre_face;
+    back0_f.i_pre_face = f->i_pre_face;
+    back1_f.i_pre_face = f->i_pre_face;
 
     front_f.next_in_node = NULL;
     back0_f.next_in_node = NULL;
@@ -1100,7 +1100,9 @@ void cut_vertices(BSPSubset const *pset, BSPSubset *fset, BSPSubset *bset, VtxeS
     fset->num_occupied_subV = 0;
     bset->num_occupied_subV = 0;
     for (size_t i_pset_subV = 0; i_pset_subV < pset->num_subV; i_pset_subV++) {
-        size_t i_v = pset->subVs[i_pset_subV].i_v;
+        VtxeSubsetEntry *pset_subV = &pset->subVs[i_pset_subV];
+        
+        size_t i_v = pset_subV->i_v;
         switch (VSRs[i_pset_subV]) {
         case VSR_COPLANAR: {
             //if (fset->nonempty) {
@@ -1194,8 +1196,8 @@ void cut_edges(BSPSubset const *pset, BSPSubset *fset, BSPSubset *bset, VtxeSpat
             // Make new vertex.
             Maker_BSPVertex v_new;
 
-            find_intersection(g_maker_tree.vertices[i_v0].vertex,
-                              g_maker_tree.vertices[i_v1].vertex,
+            find_intersection(g_maker_tree.verts[i_v0].vertex,
+                              g_maker_tree.verts[i_v1].vertex,
                               *splitV, *splitN, &v_new.vertex);
 
             // TODO: Assert that the new vertex is sufficiently close to being
@@ -1203,6 +1205,7 @@ void cut_edges(BSPSubset const *pset, BSPSubset *fset, BSPSubset *bset, VtxeSpat
             dibassert(BSP_sideof(v_new.vertex, *splitV, *splitN) == SIDE_MID);
             
             // Store  new vertex...
+            v_new.i_pre_vert = -1;
             v_new.flags = 0 | MV_FROM_CUT;
             
             // ... in tree
@@ -1404,7 +1407,7 @@ void compute_VSRs
     size_t num_front_v = 0;
     size_t num_back_v = 0;
     for(size_t i_subV = 0; i_subV < num_subV; i_subV++) {
-        side = BSP_sideof(g_maker_tree.vertices[subVs[i_subV].i_v].vertex,
+        side = BSP_sideof(g_maker_tree.verts[subVs[i_subV].i_v].vertex,
                           planeV, planeN);
         VtxeSpatialRelation vsr;
         
@@ -1559,8 +1562,8 @@ void compute_FSRs
 }
 
 static size_t add_vertex_to_tree(Maker_BSPVertex v) {
-    size_t i_v = g_maker_tree.num_vertices++;
-    g_maker_tree.vertices[i_v] = v;
+    size_t i_v = g_maker_tree.num_verts++;
+    g_maker_tree.verts[i_v] = v;
     
     return i_v;
 }
@@ -1618,7 +1621,7 @@ static size_t replace_face_in_tree(size_t i_f, Maker_BSPFace f) {
 static size_t add_face_to_tree0
 (size_t i_v0, size_t i_v1, size_t i_v2,
  size_t i_e0, size_t i_e1, size_t i_e2,
- bool from_cut, uint32_t i_gen_face) {
+ bool from_cut, uint32_t i_pre_face) {
     Maker_BSPFace f = {0};
     f.i_v0 = i_v0;
     f.i_v1 = i_v1;
@@ -1627,7 +1630,7 @@ static size_t add_face_to_tree0
     f.i_e1 = i_e1;
     f.i_e2 = i_e2;
     f.flags |= MF_FROM_CUT;
-    f.i_gen_face = i_gen_face;
+    f.i_pre_face = i_pre_face;
     f.next_in_node = NULL;
     
     size_t i_f = g_maker_tree.num_mbsp_faces++;
@@ -1674,8 +1677,8 @@ bool is_convex(BSPSubset *set) {
     
     for (size_t i_subF = 0; i_subF < set->num_subF; i_subF++) {
         size_t i_f = set->subFs[i_subF].i_f;
-        planeV = g_gen.vertices[g_gen.faces[g_maker_tree.mbsp_faces[i_f].i_gen_face].i_v0];
-        planeN = g_gen.faces[g_maker_tree.mbsp_faces[i_f].i_gen_face].normal;
+        planeV = g_gen.vertices[g_gen.faces[g_maker_tree.mbsp_faces[i_f].i_pre_face].i_v0];
+        planeN = g_gen.faces[g_maker_tree.mbsp_faces[i_f].i_pre_face].normal;
         
         for (size_t j_subF = i_subF + 1; j_subF < set->num_subF; j_subF++) {
 

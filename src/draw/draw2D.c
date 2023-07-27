@@ -25,7 +25,7 @@ static void draw2D_wireframe(View2D *v2d, EdgeSet *eset, zgl_Color color, uint8_
 #define NUM_ZOOMS 94
 
 // A table of world widths, which together with window width determines the zoom level of the view.
-static UFix64 const zooms[NUM_ZOOMS] = {0X10000, 0X12492, 0X14E5D, 0X17E21, 0X1B4B8, 0X1F31B, 0X23A68, 0X28BE4, 0X2E904, 0X35372, 0X3CD14, 0X45816, 0X4F6F4, 0X5AC84, 0X67C04, 0X76929, 0X8782E, 0X9ADEB, 0XB0FE8, 0XCA476, 0XE72D0, 0X108336, 0X12DF19, 0X159141, 0X18A601, 0X1C2B6E, 0X2031A2, 0X24CB02, 0X2A0C94, 0X300E60, 0X36EBDB, 0X3EC468, 0X47BBE4, 0X51FB4D, 0X5DB17C, 0X6B13FB, 0X7A5FFA, 0X8BDB66, 0X9FD62B, 0XB6AB9E, 0XD0C422, 0XEE9702, 0X110AC94, 0X137A0A9, 0X1642553, 0X1970615, 0X1D12B85, 0X2139F73, 0X25F91A8, 0X2B65D52, 0X3198F39, 0X38AECD3, 0X40C7C5E, 0X4A08E22, 0X549C702, 0X60B2C94, 0X6E832F2, 0X7E4CC82, 0X9057C02, 0XA4F6926, 0XBC8782B, 0XD7764C3, 0XF63E0DE, 0X1196B7D9, 0X1419F6AE, 0X16F919EB, 0X1A414231, 0X1E017038, 0X224AC964, 0X2730E629, 0X2CCA2B9C, 0X333031D6, 0X3A8038F4, 0X42DBAECD, 0X4C68C7C5, 0X57532D73, 0X63CCC63A, 0X720E9966, 0X8259D3E2, 0X94F8F226, 0XAA4114BD, 0XC293856A, 0XDE5F73E6, 0XFE23F22B, 0X122723955, 0X14BF04185, 0X17B5BB898, 0X1B18D6540, 0X1EF7D0600, 0X23645BDB6, 0X2872B21F4, 0X2E39F023B, 0X34D48028C, 0X3C609277B};
+static UFix64 const zoom_lut[NUM_ZOOMS] = {0X10000, 0X12492, 0X14E5D, 0X17E21, 0X1B4B8, 0X1F31B, 0X23A68, 0X28BE4, 0X2E904, 0X35372, 0X3CD14, 0X45816, 0X4F6F4, 0X5AC84, 0X67C04, 0X76929, 0X8782E, 0X9ADEB, 0XB0FE8, 0XCA476, 0XE72D0, 0X108336, 0X12DF19, 0X159141, 0X18A601, 0X1C2B6E, 0X2031A2, 0X24CB02, 0X2A0C94, 0X300E60, 0X36EBDB, 0X3EC468, 0X47BBE4, 0X51FB4D, 0X5DB17C, 0X6B13FB, 0X7A5FFA, 0X8BDB66, 0X9FD62B, 0XB6AB9E, 0XD0C422, 0XEE9702, 0X110AC94, 0X137A0A9, 0X1642553, 0X1970615, 0X1D12B85, 0X2139F73, 0X25F91A8, 0X2B65D52, 0X3198F39, 0X38AECD3, 0X40C7C5E, 0X4A08E22, 0X549C702, 0X60B2C94, 0X6E832F2, 0X7E4CC82, 0X9057C02, 0XA4F6926, 0XBC8782B, 0XD7764C3, 0XF63E0DE, 0X1196B7D9, 0X1419F6AE, 0X16F919EB, 0X1A414231, 0X1E017038, 0X224AC964, 0X2730E629, 0X2CCA2B9C, 0X333031D6, 0X3A8038F4, 0X42DBAECD, 0X4C68C7C5, 0X57532D73, 0X63CCC63A, 0X720E9966, 0X8259D3E2, 0X94F8F226, 0XAA4114BD, 0XC293856A, 0XDE5F73E6, 0XFE23F22B, 0X122723955, 0X14BF04185, 0X17B5BB898, 0X1B18D6540, 0X1EF7D0600, 0X23645BDB6, 0X2872B21F4, 0X2E39F023B, 0X34D48028C, 0X3C609277B};
 
 
 static View2D view2D[3] = {
@@ -85,7 +85,7 @@ static bool in_worldrect_tsf(WorldVec pt, WorldRect rect, View2D *v2d) {
 }
 
 static int screenpoint_from_worldpoint_64
-(const Fix64Vec_2D *world_pt, zgl_mPixel *mapscr_pt, View2D *v2d) {
+(Fix64Vec_2D const *world_pt, zgl_mPixel *mapscr_pt, View2D *v2d) {
     mapscr_pt->x = (Fix32)(v2d->screenbox.x +
                     v2d->screenbox.w/2 +
                     FIX_MULDIV(world_pt->x - v2d->center.x,
@@ -102,7 +102,7 @@ static int screenpoint_from_worldpoint_64
 }
 
 static int screenpoint_from_worldpoint
-(const WorldVec *world_pt, Fix64Vec_2D *mapscr_pt, View2D *v2d) {
+(WorldVec const *world_pt, Fix64Vec_2D *mapscr_pt, View2D *v2d) {
     mapscr_pt->x = (v2d->screenbox.x +
                     v2d->screenbox.w/2 +
                     FIX_MULDIV(world_pt->v[v2d->i_x] - v2d->center.x,
@@ -116,6 +116,13 @@ static int screenpoint_from_worldpoint
                                  v2d->worldbox.w));
     
     return 0;
+}
+
+void worldpoint_from_screenpoint(Fix32Vec_2D mapscr_pt, WorldVec *world_pt, Plane tsf) {
+    View2D *v2d = view2D + tsf;
+    world_pt->v[v2d->i_x] = (Fix32)(v2d->center.x + FIX_MULDIV((mapscr_pt.x - v2d->screenbox.x - v2d->screenbox.w/2), v2d->worldbox.w, v2d->screenbox.w));
+
+    world_pt->v[v2d->i_y] = (Fix32)(v2d->center.y - FIX_MULDIV((mapscr_pt.y - v2d->screenbox.y - v2d->screenbox.h/2), v2d->worldbox.w, v2d->screenbox.w));
 }
 
 static bool potentially_visible_seg(Fix64Seg_2D seg, zgl_mPixelRect rect) {
@@ -156,7 +163,7 @@ static epm_Result draw2D_world(View2D *v2d) {
 
 static inline Fix64Vec_2D worldspace_to_eyespace_2D(WorldVec in, View2D *v2d) {
     return (Fix64Vec_2D){.x = (Fix64)in.v[v2d->i_x],
-                           .y = (Fix64)in.v[v2d->i_y]};
+                         .y = (Fix64)in.v[v2d->i_y]};
 }
 
 static inline void eyespace_to_screen_2D(Fix64Vec_2D e, zgl_mPixel *s, View2D *v2d) {
@@ -203,7 +210,7 @@ static void draw2D_wireframe(View2D *v2d, EdgeSet *eset, zgl_Color color, uint8_
         zglDraw_mPixelSeg;
     
     //size_t num_vertices = eset->num_vertices;
-    WorldVec *vertices = eset->vertices;
+    WorldVec *vertices = eset->verts;
     size_t num_edges = eset->num_edges;
     Edge *edges = eset->edges;
    
@@ -315,11 +322,11 @@ void draw_View2D(Window *win) {
     draw2D_world(v2d);
 
     // Draw framebrush
-    draw2D_wireframe(v2d, &EdgeSet_of(*frame), color_brushframe, WIREFLAGS_DOTTED);
+    draw2D_wireframe(v2d, &EdgeSet_of(*g_frame), color_brushframe, WIREFLAGS_DOTTED);
         
     // Draw brush selection.
-    for (BrushSelectionNode *node = brushsel.head; node; node = node->next) {
-        Brush *brush = (Brush *)node->brush;
+    for (SelectionNode *node = sel_brush.head; node; node = node->next) {
+        Brush *brush = (Brush *)node->obj;
 
         draw2D_wireframe(v2d, &EdgeSet_of(*brush), color_selected_brush, 0);
     }
@@ -328,7 +335,7 @@ void draw_View2D(Window *win) {
     Fix64Seg_2D trans_MPS;
     zgl_mPixelSeg clipped_MPS;
 
-    screenpoint_from_worldpoint(&brushsel.POR, &trans_MPS.pt0, v2d);
+    screenpoint_from_worldpoint(&brushsel_POR, &trans_MPS.pt0, v2d);
     clipped_MPS.pt0.x = (Fix32)trans_MPS.pt0.x;
     clipped_MPS.pt0.y = (Fix32)trans_MPS.pt0.y;
     zglDraw_mPixelDot(g_scr, &v2d->screenbox, &clipped_MPS.pt0, 0xFABCDE);
@@ -506,17 +513,31 @@ void scroll(Window *win, int dx, int dy, Plane tsf) {
     
     Fix64 new_x = v2d->center.x + wit_from_mPixit(-LSHIFT32(dx, 16),
                                                     fixify(win->rect.w),
-                                                    zooms[v2d->i_zoom]);
+                                                    zoom_lut[v2d->i_zoom]);
         
     Fix64 new_y = v2d->center.y - wit_from_mPixit(-LSHIFT32(dy, 16),
                                                     fixify(win->rect.h),
-                                                    FIX_MULDIV(zooms[v2d->i_zoom],
+                                                    FIX_MULDIV(zoom_lut[v2d->i_zoom],
                                                                win->rect.h,
                                                                win->rect.w));
 
     // clamp center to valid world coordinates
     v2d->center.x = MAX(MIN(new_x, FIX32_MAX), FIX32_MIN);
     v2d->center.y = MAX(MIN(new_y, FIX32_MAX), FIX32_MIN);
+}
+
+void compute_scroll(Window *win, int dx, int dy, Plane tsf, Fix32 *out_wdx, Fix32 *out_wdy) {
+    View2D *v2d = &view2D[tsf];
+    
+    *out_wdx = (WorldUnit)wit_from_mPixit(-LSHIFT32(dx, 16),
+                                          fixify(win->rect.w),
+                                          zoom_lut[v2d->i_zoom]);
+        
+    *out_wdy = (WorldUnit)wit_from_mPixit(-LSHIFT32(dy, 16),
+                                          fixify(win->rect.h),
+                                          FIX_MULDIV(zoom_lut[v2d->i_zoom],
+                                                     win->rect.h,
+                                                     win->rect.w));
 }
 
 void zoom_level_up(Plane tsf) {
@@ -534,7 +555,7 @@ void set_zoom_level(View2D *v2d) {
 
     // TODO: find min&max x&y
 
-    v2d->worldbox.w = zooms[v2d->i_zoom];
+    v2d->worldbox.w = zoom_lut[v2d->i_zoom];
     v2d->worldbox.h = FIX_MULDIV(v2d->worldbox.w,
                                  v2d->screenbox.h,
                                  v2d->screenbox.w);
@@ -552,3 +573,6 @@ void set_zoom_level(View2D *v2d) {
     v2d->gridres_world_shift = gridres_world_shift;
     v2d->gridres_world = 1<<gridres_world_shift;
 }
+
+
+

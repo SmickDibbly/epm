@@ -41,7 +41,8 @@ typedef enum KeyAction {
     KEYACT_TURN_DOWN,
     KEYACT_TURN_LEFT,
     KEYACT_TURN_RIGHT,
-    KEYACT_TOGGLE_BSP,
+    KEYACT_TOGGLE_BSPVIS,
+    KEYACT_TOGGLE_NORMALVIS,
     KEYACT_TOGGLE_PROJ,
 
     NUM_KEYACT
@@ -58,7 +59,8 @@ static zgl_KeyComplex map[NUM_KEYACT] = {
     [KEYACT_TURN_DOWN]     = {ZK_DOWN, 0, LK_DOWN},
     [KEYACT_TURN_LEFT]     = {ZK_LEFT, 0, LK_LEFT},
     [KEYACT_TURN_RIGHT]    = {ZK_RIGHT, 0, LK_RIGHT},
-    [KEYACT_TOGGLE_BSP]    = {ZK_b, ZGL_ALT_MASK | ZGL_SHIFT_MASK, LK_M_S_b},
+    [KEYACT_TOGGLE_BSPVIS]    = {ZK_b, ZGL_ALT_MASK | ZGL_SHIFT_MASK, LK_M_S_b},
+    [KEYACT_TOGGLE_NORMALVIS]    = {ZK_n, ZGL_ALT_MASK | ZGL_SHIFT_MASK, LK_M_S_n},
     [KEYACT_TOGGLE_PROJ]   = {ZK_p, ZGL_ALT_MASK | ZGL_SHIFT_MASK, LK_M_S_p},
 };
 
@@ -75,7 +77,8 @@ static ConfigMapEntry const cme_keys[NUM_KEYACT] = {
     {"TurnDown", map + KEYACT_TURN_DOWN},
     {"TurnLeft", map + KEYACT_TURN_LEFT},
     {"TurnRight", map + KEYACT_TURN_RIGHT},
-    {"ToggleBSP", map + KEYACT_TOGGLE_BSP},
+    {"ToggleBSPVis", map + KEYACT_TOGGLE_BSPVIS},
+    {"ToggleNormalVis", map + KEYACT_TOGGLE_NORMALVIS},
     {"ToggleProjectionType", map + KEYACT_TOGGLE_PROJ},
 };
 
@@ -168,6 +171,10 @@ static int input_mode = IM_DEFAULT;
 #define IM_DRAG_BRUSHPAN_X 3
 #define IM_DRAG_BRUSHPAN_Y 4
 #define IM_DRAG_BRUSHPAN_Z 5
+#define IM_DRAG_VERTPAN_X 6
+#define IM_DRAG_VERTPAN_Y 7
+#define IM_DRAG_VERTPAN_Z 8
+
 static int drag_mode = IM_DRAG_MOVING;
 
 extern void grab_input(Window *win);
@@ -179,6 +186,7 @@ static void do_PointerPress_default(Window *win, zgl_PointerPressEvent *evt) {
     if (lk == LK_POINTER_MIDDLE) {
         grab_input(win);
         input_mode = IM_MOUSELOOK;
+        return; // TODO: Verify this is right.
     }
 
     grab_input(win);
@@ -196,6 +204,7 @@ static void do_PointerPress_predrag(Window *win, zgl_PointerPressEvent *evt) {
 }
 
 static Fix32 brushpan_acc = 0;
+static Fix32 vertpan_acc = 0;
 static void compute_drag_submode(Window *win, uint8_t mod_flags, uint8_t but_flags) {
     bool 
         LEFT  = but_flags & ZGL_MOUSELEFT_MASK,
@@ -212,17 +221,36 @@ static void compute_drag_submode(Window *win, uint8_t mod_flags, uint8_t but_fla
         input_mode = IM_DRAG;
         if (SHIFT || CTRL) {
             if (LEFT && RIGHT) {
-                drag_mode = IM_DRAG_BRUSHPAN_Z;
-                brushpan_acc = 0;
+                if (sel_brushvert.num_selected > 0) {
+                    drag_mode = IM_DRAG_VERTPAN_Z;
+                    vertpan_acc = 0;
+                }
+                else {
+                    drag_mode = IM_DRAG_BRUSHPAN_Z;
+                    brushpan_acc = 0;
+                }
+                
             }
             else if (LEFT) {
-                drag_mode = IM_DRAG_BRUSHPAN_X;
-                brushpan_acc = 0;
+                if (sel_brushvert.num_selected > 0) {
+                    drag_mode = IM_DRAG_VERTPAN_X;
+                    vertpan_acc = 0;
+                }
+                else {
+                    drag_mode = IM_DRAG_BRUSHPAN_X;
+                    brushpan_acc = 0;
+                }
                 
             }
             else /*if (RIGHT)*/ {
-                drag_mode = IM_DRAG_BRUSHPAN_Y;
-                brushpan_acc = 0;
+                if (sel_brushvert.num_selected > 0) {
+                    drag_mode = IM_DRAG_VERTPAN_Y;
+                    vertpan_acc = 0;
+                }
+                else {
+                    drag_mode = IM_DRAG_BRUSHPAN_Y;
+                    brushpan_acc = 0;
+                }
             }
         }
         else {
@@ -283,7 +311,8 @@ static void do_PointerRelease_World3D(Window *win, zgl_PointerReleaseEvent *evt)
             }
         }
         else if (lk == LK_POINTER_RIGHT) {
-            select_vertex(win, zgl_GetPointerPos());
+            select_vert(win, zgl_GetPointerPos());
+            //epm_SelectBrushesByVertex(win, zgl_GetPointerPos());
         }
         break;
     case IM_DRAG:
@@ -297,7 +326,7 @@ static void do_PointerRelease_World3D(Window *win, zgl_PointerReleaseEvent *evt)
 }
 
 //static uint32_t snaplog = 4;
-static uint32_t snap = (1<<(4+16));
+uint32_t snap = (1<<(4+16));
 
 #define round_nearest_pow2(NUM, POW2) \
     (((NUM) & ((POW2)>>1)) ? ((NUM) & ~((POW2)-1)) + (POW2) : ((NUM) & ~((POW2)-1)))
@@ -317,38 +346,38 @@ WorldVec snap_point(WorldVec in) {
 }
 
 static void delete_selected_brushes(void) {
-    for (BrushSelectionNode *node = brushsel.head; node; node = node->next) {
-        Brush *brush = node->brush;
+    for (SelectionNode *node = sel_brush.head; node; node = node->next) {
+        Brush *brush = node->obj;
         //if (brush == frame) continue;
         unlink_brush(brush);
     }
 
-    clear_brush_selection(&brushsel);
+    BrushSel_clear();
 }
 
-static void snap_brush_selection(void) {
-    WorldVec snapped = snap_point(brushsel.POR);
-    Fix32 dx = x_of(snapped) - x_of(brushsel.POR);
-    Fix32 dy = y_of(snapped) - y_of(brushsel.POR);
-    Fix32 dz = z_of(snapped) - z_of(brushsel.POR);
+void snap_brush_selection(void) {
+    WorldVec snapped = snap_point(brushsel_POR);
+    Fix32 dx = x_of(snapped) - x_of(brushsel_POR);
+    Fix32 dy = y_of(snapped) - y_of(brushsel_POR);
+    Fix32 dz = z_of(snapped) - z_of(brushsel_POR);
 
     if ( ! (dx || dy || dz)) return; // already snapped
     
-    for (BrushSelectionNode *node = brushsel.head; node; node = node->next) {
-        Brush *brush = node->brush;
+    for (SelectionNode *node = sel_brush.head; node; node = node->next) {
+        Brush *brush = node->obj;
 
         x_of(brush->POR) += dx;
         y_of(brush->POR) += dx;
         z_of(brush->POR) += dx;
                 
-        WorldVec *v = brush->vertices;
-        for (size_t i_v = 0; i_v < brush->num_vertices; i_v++) {
+        WorldVec *v = brush->verts;
+        for (size_t i_v = 0; i_v < brush->num_verts; i_v++) {
             x_of(v[i_v]) += dx;
             y_of(v[i_v]) += dy;
             z_of(v[i_v]) += dz;
         }
     }
-    brushsel.POR = snapped;
+    brushsel_POR = snapped;
 }
 
 static void do_PointerMotion_World3D(Window *win, zgl_PointerMotionEvent *evt) {
@@ -391,8 +420,8 @@ static void do_PointerMotion_World3D(Window *win, zgl_PointerMotionEvent *evt) {
             cam.mouse_motion_vel.v[I_Z] = -(fixify(dy)>>1);
             break;
         case IM_DRAG_BRUSHPAN_X: {
-            if (brushsel.head == NULL) {
-                add_selected_brush(&brushsel, frame);
+            if (sel_brush.head == NULL) {
+                BrushSel_add(g_frame);
             }
             
             snap_brush_selection();
@@ -411,24 +440,23 @@ static void do_PointerMotion_World3D(Window *win, zgl_PointerMotionEvent *evt) {
                 brushpan_acc = (brushpan_acc & (snap-1));
             }
 
-            x_of(brushsel.POR) += world_dx;
-            for (BrushSelectionNode *node = brushsel.head; node; node = node->next) {
-                Brush *brush = node->brush;
+            x_of(brushsel_POR) += world_dx;
+            for (SelectionNode *node = sel_brush.head; node; node = node->next) {
+                Brush *brush = node->obj;
                 x_of(brush->POR) += world_dx;
                 
-                WorldVec *v = brush->vertices;
-                for (size_t i_v = 0; i_v < brush->num_vertices; i_v++) {
+                WorldVec *v = brush->verts;
+                for (size_t i_v = 0; i_v < brush->num_verts; i_v++) {
                     x_of(v[i_v]) += world_dx;                    
                 }
             }
-                
+            
             if (LK_states[LK_LSHIFT]) x_of(cam.pos) += world_dx;
-           
         }
             break;
         case IM_DRAG_BRUSHPAN_Y: {
-            if (brushsel.head == NULL) {
-                add_selected_brush(&brushsel, frame);
+            if (sel_brush.head == NULL) {
+                BrushSel_add(g_frame);
             }
                         
             snap_brush_selection();
@@ -447,12 +475,12 @@ static void do_PointerMotion_World3D(Window *win, zgl_PointerMotionEvent *evt) {
                 brushpan_acc = (brushpan_acc & (snap-1));
             }
 
-            y_of(brushsel.POR) += world_dy;
-            for (BrushSelectionNode *node = brushsel.head; node; node = node->next) {
-                Brush *brush = node->brush;
+            y_of(brushsel_POR) += world_dy;
+            for (SelectionNode *node = sel_brush.head; node; node = node->next) {
+                Brush *brush = node->obj;
                 y_of(brush->POR) += world_dy;
-                WorldVec *v = brush->vertices;
-                for (size_t i_v = 0; i_v < brush->num_vertices; i_v++) {
+                WorldVec *v = brush->verts;
+                for (size_t i_v = 0; i_v < brush->num_verts; i_v++) {
                     y_of(v[i_v]) += world_dy;
                 }
             }
@@ -461,8 +489,8 @@ static void do_PointerMotion_World3D(Window *win, zgl_PointerMotionEvent *evt) {
         }
             break;
         case IM_DRAG_BRUSHPAN_Z: {
-            if (brushsel.head == NULL) {
-                add_selected_brush(&brushsel, frame);
+            if (sel_brush.head == NULL) {
+                BrushSel_add(g_frame);
             }
             
             snap_brush_selection();
@@ -470,7 +498,7 @@ static void do_PointerMotion_World3D(Window *win, zgl_PointerMotionEvent *evt) {
             int world_dz = -(fixify(dy)>>1);
             brushpan_acc += world_dz;
 
-            if ( ABS(brushpan_acc) <= snap ) break;
+            if ( ABS(brushpan_acc) <= snap) break;
 
             if (brushpan_acc < 0) {
                 world_dz = (brushpan_acc & ~(snap-1)) + snap;
@@ -481,18 +509,105 @@ static void do_PointerMotion_World3D(Window *win, zgl_PointerMotionEvent *evt) {
                 brushpan_acc = (brushpan_acc & (snap-1));
             }
             
-            z_of(brushsel.POR) += world_dz;
-            for (BrushSelectionNode *node = brushsel.head; node; node = node->next) {
-                Brush *brush = node->brush;
+            z_of(brushsel_POR) += world_dz;
+            for (SelectionNode *node = sel_brush.head; node; node = node->next) {
+                Brush *brush = node->obj;
                 z_of(brush->POR) += world_dz;
-                WorldVec *v = brush->vertices;
-                for (size_t i_v = 0; i_v < brush->num_vertices; i_v++) {
+                WorldVec *v = brush->verts;
+                for (size_t i_v = 0; i_v < brush->num_verts; i_v++) {
                     z_of(v[i_v]) += world_dz;
                 }
             }
 
             if (LK_states[LK_LSHIFT]) z_of(cam.pos) += world_dz;
 
+        }
+            break;
+        case IM_DRAG_VERTPAN_X: {
+            if (sel_brushvert.head == NULL) {
+                break;
+            }
+            
+            int world_dx = -(fixify(dx)>>1);
+            vertpan_acc += world_dx;
+
+            if (vertpan_acc < 0) {
+                world_dx = (vertpan_acc & ~(snap-1)) + snap;
+                vertpan_acc = (vertpan_acc & (snap-1)) - snap;
+            }
+            else {
+                world_dx = (vertpan_acc & ~(snap-1));
+                vertpan_acc = (vertpan_acc & (snap-1));
+            }
+
+            for (SelectionNode *node = sel_brushvert.head; node; node = node->next) {
+                typedef struct BrushVertEntry {
+                    Brush *brush;
+                    uint32_t i_v;
+                } BrushVertEntry;
+                Brush *brush = ((BrushVertEntry *)(node->obj))->brush;
+                int32_t i_v = ((BrushVertEntry *)(node->obj))->i_v;
+                
+                x_of(brush->verts[i_v]) += world_dx;
+            }
+        }
+            break;
+        case IM_DRAG_VERTPAN_Y: {
+            if (sel_brushvert.head == NULL) {
+                break;
+            }
+            
+            int world_dy = -(fixify(dx)>>1);
+            vertpan_acc += world_dy;
+
+            if (vertpan_acc < 0) {
+                world_dy = (vertpan_acc & ~(snap-1)) + snap;
+                vertpan_acc = (vertpan_acc & (snap-1)) - snap;
+            }
+            else {
+                world_dy = (vertpan_acc & ~(snap-1));
+                vertpan_acc = (vertpan_acc & (snap-1));
+            }
+
+            for (SelectionNode *node = sel_brushvert.head; node; node = node->next) {
+                typedef struct BrushVertEntry {
+                    Brush *brush;
+                    uint32_t i_v;
+                } BrushVertEntry;
+                Brush *brush = ((BrushVertEntry *)(node->obj))->brush;
+                int32_t i_v = ((BrushVertEntry *)(node->obj))->i_v;
+                
+                y_of(brush->verts[i_v]) += world_dy;
+            }
+        }
+            break;
+        case IM_DRAG_VERTPAN_Z: {
+            if (sel_brushvert.head == NULL) {
+                break;
+            }
+            
+            int world_dz = -(fixify(dy)>>1);
+            vertpan_acc += world_dz;
+
+            if (vertpan_acc < 0) {
+                world_dz = (vertpan_acc & ~(snap-1)) + snap;
+                vertpan_acc = (vertpan_acc & (snap-1)) - snap;
+            }
+            else {
+                world_dz = (vertpan_acc & ~(snap-1));
+                vertpan_acc = (vertpan_acc & (snap-1));
+            }
+
+            for (SelectionNode *node = sel_brushvert.head; node; node = node->next) {
+                typedef struct BrushVertEntry {
+                    Brush *brush;
+                    uint32_t i_v;
+                } BrushVertEntry;
+                Brush *brush = ((BrushVertEntry *)(node->obj))->brush;
+                int32_t i_v = ((BrushVertEntry *)(node->obj))->i_v;
+                
+                z_of(brush->verts[i_v]) += world_dz;
+            }
         }
             break;
         default:
@@ -502,7 +617,6 @@ static void do_PointerMotion_World3D(Window *win, zgl_PointerMotionEvent *evt) {
     default:
         break;
     }
-
 }
 static void do_PointerEnter_World3D(Window *win, zgl_PointerEnterEvent *evt) {
     (void)win, (void)evt;
@@ -523,9 +637,9 @@ static void do_KeyPress_World3D(Window *win, zgl_KeyPressEvent *evt) {
         compute_drag_submode(win, evt->mod_flags, mouse_states);
     }
     else if (lk == LK_S_u) {
-        clear_vertex_selection(&vertexsel);
-        sel_clear(&sel_face);
-        clear_brush_selection(&brushsel);
+        BrushVertSel_clear();
+        BrushPolySel_clear();
+        BrushSel_clear();
     }
     else if (lk == LK_S_b) {
         select_all_brush_faces();
@@ -552,8 +666,11 @@ static void do_KeyPress_World3D(Window *win, zgl_KeyPressEvent *evt) {
         if (EPM_ERROR != get_dpad_state(look_dpad, &dir, &ang))
             do_dpad_look(dir, ang);
     }
-    else if (lk == map[KEYACT_TOGGLE_BSP].lk) {
-        g_settings.BSP_visualizer = ! g_settings.BSP_visualizer;
+    else if (lk == map[KEYACT_TOGGLE_BSPVIS].lk) {
+        epm_ToggleBSPVisualizerMode();
+    }
+    else if (lk == map[KEYACT_TOGGLE_NORMALVIS].lk) {
+        epm_ToggleNormalVisualizerMode();
     }
     else if (lk == map[KEYACT_TOGGLE_PROJ].lk) {
         epm_ToggleProjectionMode();
@@ -599,8 +716,6 @@ static void do_KeyRelease_World3D(Window *win, zgl_KeyReleaseEvent *evt) {
         delete_selected_brushes();
     }
 }
-
-
 
 static Fix32 dir_cos18[9] = {
     [DPAD_NULL] = 0 /*not used*/,

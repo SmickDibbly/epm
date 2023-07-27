@@ -5,10 +5,11 @@ void initialize_Maker_BSPTree(void) {
     
     // To start off, the BSP vertex array shall be identical to the given vertex
     // array. Additional vertices may be added as the algorithm proceeds.
-    g_maker_tree.num_vertices = g_gen.num_vertices;
-    for (size_t i_v = 0; i_v < g_gen.num_vertices; i_v++) {
-        Maker_BSPVertex *mbsp_vertex = g_maker_tree.vertices + i_v;
-        mbsp_vertex->vertex = g_gen.vertices[i_v];
+    g_maker_tree.num_verts = g_gen.num_verts;
+    for (size_t i_v = 0; i_v < g_gen.num_verts; i_v++) {
+        Maker_BSPVertex *mbsp_vertex = g_maker_tree.verts + i_v;
+        mbsp_vertex->vertex = g_gen.verts[i_v];
+        mbsp_vertex->i_pre_vert = (int32_t)i_v;
         mbsp_vertex->flags = 0;
     }
 
@@ -28,7 +29,7 @@ void initialize_Maker_BSPTree(void) {
         mbsp_face->i_v1 = gen_face->i_v[1];
         mbsp_face->i_v2 = gen_face->i_v[2];
         mbsp_face->next_in_node = NULL;
-        mbsp_face->i_gen_face = i_f;
+        mbsp_face->i_pre_face = i_f;
         mbsp_face->flags = 0;
         
         bool found0 = false, found1 = false, found2 = false;

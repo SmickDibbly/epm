@@ -8,7 +8,7 @@
 
 int num_alloc_nodes = 0;
 
-ProgenitorGeometry g_gen;
+PreGeometry g_gen;
 BSPTree *g_p_final_tree;
 
 static void prune_subset(BSPSubset *set);
@@ -17,25 +17,23 @@ static bool assert_geometry_uniqueness(void);
 static void BSP_recursion(BSPSubset subfaces);
 static void check_no_unused_faces(BSPTree *tree);
 
-epm_Result create_BSPTree(BSPTree *out_tree, int ignore,
-                          size_t in_num_gen_vertices, WorldVec const *in_gen_vertices,
-                          size_t in_num_gen_edges, Edge const *in_gen_edges,
-                          size_t in_num_gen_faces, Face const *in_gen_faces) {
-
+extern epm_Result create_BSPTree(BSPTree *out_tree, PreGeometry *pre) {
     utime_t start = zgl_ClockQuery();
     epm_Log(LT_INFO, "Creating BSP tree.");
 
     /* ------------------------------------------------------------------*/
     // Make genesis data accessible.
     
-    g_gen.num_vertices = in_num_gen_vertices;
-    g_gen.vertices = in_gen_vertices;
+    g_gen.num_verts = pre->num_verts;
+    g_gen.verts     = pre->verts;
+    g_gen.vert_exts = pre->vert_exts;
 
-    g_gen.num_edges = in_num_gen_edges;
-    g_gen.edges = in_gen_edges;
+    g_gen.num_edges = pre->num_edges;
+    g_gen.edges     = pre->edges;
 
-    g_gen.num_faces = in_num_gen_faces;
-    g_gen.faces = in_gen_faces;
+    g_gen.num_faces = pre->num_faces;
+    g_gen.faces     = pre->faces;
+    g_gen.face_exts = pre->face_exts;
     
     vbs_putchar('\n');
     vbs_printf("+----------------------------+\n"
@@ -63,7 +61,7 @@ epm_Result create_BSPTree(BSPTree *out_tree, int ignore,
     print_Faces(g_gen.num_faces, g_gen.faces);
     vbs_putchar('\n');
 
-    //dibassert(assert_geometry_uniqueness());
+    dibassert(assert_geometry_uniqueness());
 
     /* ------------------------------------------------------------------*/
     // Initialization.
@@ -220,9 +218,9 @@ static void BSP_recursion(BSPSubset pset) {
     WorldVec const *p_splitV, *p_splitN;
     {
         // Plane data
-        Face const *og_face = &g_gen.faces[g_maker_tree.mbsp_faces[cut_data.i_split_f].i_gen_face];
-        p_splitV = &g_gen.vertices[og_face->i_v[0]];
-        p_splitN = &og_face->normal;
+        Face const *pre_face = &g_gen.faces[g_maker_tree.mbsp_faces[cut_data.i_split_f].i_pre_face];
+        p_splitV = &g_gen.verts[pre_face->i_v[0]];
+        p_splitN = &pre_face->normal;
         pset.mbsp_node->splitV = *p_splitV;
         pset.mbsp_node->splitN = *p_splitN;
 
@@ -382,16 +380,17 @@ static bool assert_geometry_uniqueness(void) {
 
     // vertices
     unique = true;
-    for (size_t i_v = 0; i_v < g_gen.num_vertices; i_v++) {
-        for (size_t j_v = 0; j_v < g_gen.num_vertices; j_v++) {
+    for (size_t i_v = 0; i_v < g_gen.num_verts; i_v++) {
+        for (size_t j_v = 0; j_v < g_gen.num_verts; j_v++) {
             if (i_v == j_v) continue;
 
-            if ((x_of(g_gen.vertices[i_v]) ==
-                 x_of(g_gen.vertices[j_v])) &&
-                (y_of(g_gen.vertices[i_v]) ==
-                 y_of(g_gen.vertices[j_v])) &&
-                (z_of(g_gen.vertices[i_v]) ==
-                 z_of(g_gen.vertices[j_v]))) {
+            if ((x_of(g_gen.verts[i_v]) ==
+                 x_of(g_gen.verts[j_v])) &&
+                (y_of(g_gen.verts[i_v]) ==
+                 y_of(g_gen.verts[j_v])) &&
+                (z_of(g_gen.verts[i_v]) ==
+                 z_of(g_gen.verts[j_v]))) {
+                epm_Log(LT_WARN, "Non-unique vertices given to BSP nodebuilder.");
                 unique = false;
                 break;
             }
@@ -402,14 +401,15 @@ static bool assert_geometry_uniqueness(void) {
 
     // edges
     unique = true;
-    for (size_t i_e = 0; i_e < g_gen.num_vertices; i_e++) {
-        for (size_t j_e = 0; j_e < g_gen.num_vertices; j_e++) {
+    for (size_t i_e = 0; i_e < g_gen.num_verts; i_e++) {
+        for (size_t j_e = 0; j_e < g_gen.num_verts; j_e++) {
             if (i_e == j_e) continue;
 
             if ((g_gen.edges[i_e].i_v0 == g_gen.edges[j_e].i_v0 &&
                  g_gen.edges[i_e].i_v1 == g_gen.edges[j_e].i_v1) ||
                 (g_gen.edges[i_e].i_v0 == g_gen.edges[j_e].i_v1 &&
                  g_gen.edges[i_e].i_v1 == g_gen.edges[j_e].i_v0)) {
+                epm_Log(LT_WARN, "Non-unique edges given to BSP nodebuilder.");
                 unique = false;
                 break;
             }

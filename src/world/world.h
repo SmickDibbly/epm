@@ -9,6 +9,7 @@
 #include "src/world/mesh.h"
 #include "src/world/bsp/bsp.h"
 #include "src/entity/entity.h"
+#include "src/world/pregeo.h"
 
 //                        -2^31
 #define WORLD_MIN   -2147483648
@@ -42,20 +43,7 @@ typedef struct Transform {
 #define MAX_STATIC_F (16384)
 #define MAX_STATIC_TEXTURES (64)
 
-typedef struct StaticGeometry {
-    size_t num_vertices;
-    WorldVec * const vertices;
-    //    uint8_t * const vbris;
-    
-    size_t num_edges;
-    Edge * const edges;
 
-    size_t num_faces;
-    Face * const faces;
-    uint8_t * const fbris;
-    Brush * * const progenitor_brush;
-} StaticGeometry;
-epm_Result reset_StaticGeometry(void);
 
 typedef struct Light {
     WorldVec pos; // x and y are center, z is foot level
@@ -64,20 +52,26 @@ typedef struct Light {
     Fix32 outer_radius;
 } Light;
 
+#define WF_LOADED_BRUSHGEO 0x01
+#define WF_LOADED_PREBSPGEO 0x02
+#define WF_LOADED_BSPGEO 0x04
+#define WF_LOADED_ENTITY 0x08
 typedef struct epm_World {
-    bool loaded;
+    uint32_t worldflags;
+    
     BrushGeometry *geo_brush;
-    StaticGeometry *geo_prebsp;
+    PreGeometry *geo_prebsp;
     BSPTree *geo_bsp;
     epm_EntityNode entity_head;
+    
     size_t num_lights;
     Light lights[64];
 } epm_World;
 
 extern epm_Result epm_WorldFromMesh(Mesh *mesh);
 
-extern epm_Result read_world(StaticGeometry *geo, char *filename);
-extern void write_world(StaticGeometry const *geo, char const *filename);
+extern epm_Result read_world(PreGeometry *geo, char *filename);
+extern void write_world(PreGeometry const *geo, char const *filename);
 
 extern epm_Result epm_ReadWorldFile(epm_World *world, char const *filename);
 extern epm_Result epm_WriteWorldFile(epm_World *world, char const *filename);
@@ -85,7 +79,15 @@ extern epm_Result epm_WriteWorldFile(epm_World *world, char const *filename);
 extern epm_Result epm_LoadWorld(char *worldname);
 extern epm_Result epm_UnloadWorld(void);
 
-extern epm_Result epm_RebuildGeometry(void);
+// To "build" a world:
+// 1) Brush -> Pre (attr: v.pos, f.vtxl) (brushes are unlit)
+// 2) Build lighting.
+// 3) Compile BSP. (attr: v.pos, f.vtxl, f.vbri)
+extern epm_Result epm_Build(void);
+
+extern epm_Result epm_BuildPreBSP(void);
+extern epm_Result epm_BuildLighting(void);
+extern epm_Result epm_BuildBSP(void);
 
 extern Transform tf;
 
@@ -112,13 +114,10 @@ extern Mesh E1M1;
 extern Mesh teapot;
 extern Mesh skybox;
 
-//extern BrushGeometry g_brushgeo;
-//extern StaticGeometry g_staticgeo;
-//extern BSPTree g_bspgeo;
 extern epm_World g_world;
 
-extern void epm_ComputeVertexBrightnesses(size_t num_vertices, WorldVec const vertices[], size_t num_lights, Light const lights[], uint8_t out_vbri[]);
+extern void epm_ComputeVertexBrightnesses(size_t num_vertices, WorldVec const vertices[], size_t num_lights, Light const lights[], size_t num_faces, Face faces[]);
 
-extern void epm_ComputeVertexBrightnessesNEW(size_t num_vertices, WorldVec const vertices[], size_t num_lights, Light const lights[], size_t num_faces, Face faces[]);
+//extern void epm_ComputeVertexBrightnessesNEW(size_t num_vertices, WorldVec const vertices[], size_t num_lights, Light const lights[], size_t num_faces, Face faces[]);
 
 #endif /* WORLD_H */

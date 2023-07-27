@@ -4,6 +4,7 @@
 #include "zigil/zigil.h"
 #include "src/misc/epm_includes.h"
 #include "src/world/geometry.h"
+#include "src/world/elements.h"
 
 #define MAX_MESH_VERTICES (16384)
 #define MAX_MESH_EDGES    (16384)
@@ -15,9 +16,8 @@ typedef struct Mesh {
     
     Fix32MinMax AABB;
 
-    size_t num_vertices;
-    WorldVec *vertices;
-    //    WorldVec *vertex_normals;
+    size_t num_verts;
+    WorldVec *verts;
 
     size_t num_edges;
     Edge *edges;
@@ -31,8 +31,8 @@ typedef struct Mesh {
 typedef struct LinkedMesh {
     Fix32MinMax AABB;
 
-    size_t num_vertices;
-    LinkedVertex *vertices;
+    size_t num_verts;
+    LinkedVertex *verts;
     // for each vertex, a list of edges and faces it belongs to
     
     size_t num_edges;
@@ -58,28 +58,12 @@ typedef struct Model {
 typedef struct EdgeMesh {
     zgl_Color wirecolor;
     
-    size_t num_vertices;
-    WorldVec *vertices;
+    size_t num_verts;
+    WorldVec *verts;
     
     size_t num_edges;
     Edge *edges;
 } EdgeMesh;
-
-#define FaceSet_of(MESH)                        \
-    ((FaceSet){                                 \
-        .num_vertices = (MESH).num_vertices,    \
-        .vertices = (MESH).vertices,            \
-        .num_faces = (MESH).num_faces,          \
-        .faces = (MESH).faces                   \
-    })
-
-#define EdgeSet_of(MESH)                        \
-    ((EdgeSet){                                 \
-        .num_vertices = (MESH).num_vertices,    \
-        .vertices = (MESH).vertices,            \
-        .num_edges = (MESH).num_edges,          \
-        .edges = (MESH).edges                   \
-    })
 
 extern void print_Mesh(Mesh *mesh);
 
@@ -100,6 +84,9 @@ extern epm_Result epm_ComputeEdgesFromFaces
 (size_t num_faces, Face *faces,
  size_t *out_num_edges, Edge *(out_edges[]));
 
+epm_Result epm_ComputeEdgesFromPolys
+(size_t num_polys, Poly *polys,
+ size_t *out_num_edges, Edge *(out_edges[]));
 
 extern void find_all_t_junctions(Mesh *mesh);
 

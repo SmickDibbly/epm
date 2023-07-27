@@ -18,13 +18,13 @@ void clear_BSPSubset(BSPSubset *set) {
 void compute_VE_from_F(BSPSubset *p_subset) {
     // Given the face indices for this subset, determine which edges and
     // vertices are present.
-    p_subset->num_subV = g_gen.num_vertices;
+    p_subset->num_subV = g_gen.num_verts;
     p_subset->num_subE = g_gen.num_edges;
     
     p_subset->subVs = zgl_Malloc(p_subset->num_subV*sizeof(*p_subset->subVs));
     p_subset->subEs = zgl_Malloc(p_subset->num_subE*sizeof(*p_subset->subEs));
 
-    g_v_inclusion = zgl_Calloc(g_gen.num_vertices, sizeof(*g_v_inclusion));
+    g_v_inclusion = zgl_Calloc(g_gen.num_verts, sizeof(*g_v_inclusion));
     g_e_inclusion = zgl_Calloc(g_gen.num_edges, sizeof(*g_e_inclusion));
     
     size_t acc_subV = 0;

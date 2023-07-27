@@ -12,8 +12,8 @@ Maker_BSPTree g_maker_tree = {
     .num_cuts = 0,
     .num_nodes = 0,
     .root = NULL,
-    .num_vertices = 0,
-    .vertices = (Maker_BSPVertex [MAX_STATIC_BSP_V]){0},//g_static_V,
+    .num_verts = 0,
+    .verts = (Maker_BSPVertex [MAX_STATIC_BSP_V]){0},//g_static_V,
     .num_msh_edges = 0,
     .msh_edges = (Maker_BSPEdge [MAX_STATIC_BSP_E]){{0}},//g_static_E,
     .num_mbsp_faces = 0,
@@ -28,8 +28,8 @@ void reset_Maker_BSPTree(void) {
     g_maker_tree.num_cuts = 0;
     g_maker_tree.num_nodes = 0;
     g_maker_tree.root = NULL;
-    g_maker_tree.num_vertices = 0;
-    memset(g_maker_tree.vertices, 0, MAX_STATIC_BSP_V);
+    g_maker_tree.num_verts = 0;
+    memset(g_maker_tree.verts, 0, MAX_STATIC_BSP_V);
     g_maker_tree.num_msh_edges = 0;
     memset(g_maker_tree.msh_edges, 0, MAX_STATIC_BSP_E);
     g_maker_tree.num_mbsp_faces = 0;

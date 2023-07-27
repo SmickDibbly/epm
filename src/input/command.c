@@ -30,6 +30,7 @@ static epm_Command const *cmds[] = {
     &CMD_loadworld,
     &CMD_unloadworld,
     &CMD_readworld,
+    &CMD_writeworld,
     &CMD_rebuild,
     &CMD_outputgeo,
     
@@ -38,7 +39,7 @@ static epm_Command const *cmds[] = {
     &CMD_loadtex,
 
     &CMD_brush_from_frame,
-    &CMD_set_frame,
+    &CMD_set_frame_cuboid,
     &CMD_set_frame_point,
     &CMD_snap,
 };

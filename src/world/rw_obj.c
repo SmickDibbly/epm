@@ -490,9 +490,9 @@ static void epm_PruneDegenerates(Mesh *p_mesh) {
 
     for (size_t i_f = 0; i_f < p_mesh->num_faces; i_f++) {
         Face *f = p_mesh->faces + i_f;
-        WorldVec v0 = p_mesh->vertices[f->i_v[0]];
-        WorldVec v1 = p_mesh->vertices[f->i_v[1]];
-        WorldVec v2 = p_mesh->vertices[f->i_v[2]];
+        WorldVec v0 = p_mesh->verts[f->i_v[0]];
+        WorldVec v1 = p_mesh->verts[f->i_v[1]];
+        WorldVec v2 = p_mesh->verts[f->i_v[2]];
 
         if (eq(v0, v1) || eq(v1, v2) || eq(v2, v0)) {
             degen_vec[i_f] = true;
@@ -527,13 +527,13 @@ static void convert_to_mesh(Mesh *p_mesh) {
     else texture_name = g_default_texture_name;
     tmp = false;
 
-    p_mesh->num_vertices = g_num_v;
-    p_mesh->vertices = zgl_Malloc(g_num_v*sizeof(*p_mesh->vertices));
+    p_mesh->num_verts = g_num_v;
+    p_mesh->verts = zgl_Malloc(g_num_v*sizeof(*p_mesh->verts));
     
     for (size_t i_v = 0; i_v < g_num_v; i_v++) {
-        x_of(p_mesh->vertices[i_v]) =  (Fix32)(g_Vs[i_v].x * FIX_P16_ONE);
-        y_of(p_mesh->vertices[i_v]) = -(Fix32)(g_Vs[i_v].z * FIX_P16_ONE);
-        z_of(p_mesh->vertices[i_v]) =  (Fix32)(g_Vs[i_v].y * FIX_P16_ONE);
+        x_of(p_mesh->verts[i_v]) =  (Fix32)(g_Vs[i_v].x * FIX_P16_ONE);
+        y_of(p_mesh->verts[i_v]) = -(Fix32)(g_Vs[i_v].z * FIX_P16_ONE);
+        z_of(p_mesh->verts[i_v]) =  (Fix32)(g_Vs[i_v].y * FIX_P16_ONE);
     }
 
     size_t num_tri = 0, num_quad = 0;
@@ -592,7 +592,7 @@ static void convert_to_mesh(Mesh *p_mesh) {
         
 
             f.flags = 0;
-            f.brushface = NULL;
+            //f.brushpoly = NULL;
         
             p_mesh->faces[i_tri++] = f;
         }
@@ -624,7 +624,7 @@ static void convert_to_mesh(Mesh *p_mesh) {
                 }
 
                 f.flags = 0;
-                f.brushface = NULL;
+                //f.brushpoly = NULL;
         
                 p_mesh->faces[i_tri++] = f;
             }
@@ -659,7 +659,7 @@ static void convert_to_mesh(Mesh *p_mesh) {
                 }
 
                 f.flags = 0;
-                f.brushface = NULL;
+                //f.brushpoly = NULL;
         
                 p_mesh->faces[i_tri++] = f;
             }
@@ -671,7 +671,7 @@ static void convert_to_mesh(Mesh *p_mesh) {
     }
 
     epm_PruneDegenerates(p_mesh);    
-    epm_ComputeFaceNormals(p_mesh->vertices, p_mesh->num_faces, p_mesh->faces);
+    epm_ComputeFaceNormals(p_mesh->verts, p_mesh->num_faces, p_mesh->faces);
     epm_ComputeFaceBrightnesses(p_mesh->num_faces, p_mesh->faces);
 
     epm_Result res =

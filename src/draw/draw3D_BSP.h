@@ -8,7 +8,9 @@
 #define MAX_SECTS 16
 extern WorldVec sect_ring[MAX_SECTS];
 
-extern BSPFace *BSPFace_below
+extern zgl_Color set_fclr_bsp_depth(Face *face);
+
+extern BSPFaceExt *BSPFace_below
 (Window *win,
  zgl_Pixel pixel,
  Frustum *fr);
@@ -19,13 +21,6 @@ extern void draw_BSPTree
  WorldVec campos,
  TransformedVertex *vbuf);
 
-extern void draw_face_BSP_visualizer
-( Window *win,
- Face *face,
- TransformedFace *tf);
-
-extern void draw_BSPNode_wireframe(Window *win, BSPTree *tree, BSPNode *node, WorldVec campos, TransformedVertex *vbuf);
-
-extern WorldVec *vertex_below(Window *win, zgl_Pixel pixel, Frustum *fr);
+extern void draw_BSPTreeWireframe(Window *win, BSPTree *tree, BSPNode *node, WorldVec campos, TransformedVertex *vbuf);
 
 #endif /* DRAW3D_BSP_H */

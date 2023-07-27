@@ -29,6 +29,7 @@ typedef struct DrawSettings {
     int wire_mode;
     int wiregeo;
     bool BSP_visualizer;
+    bool normal_visualizer;
 } DrawSettings;
 
 extern DrawSettings g_settings;
@@ -58,17 +59,19 @@ typedef struct Frustum {
     // normalized projection coordinates (NPC)
 } Frustum;
 
-extern void select_vertex(Window *win, zgl_Pixel pixel);
+
+extern int32_t BSPVertex_below(Window *win, zgl_Pixel pixel);
+extern void epm_SelectBrushesByVertex(Window *win, zgl_Pixel pixel);    
 extern void select_face(Window *win, zgl_Pixel pixel);
 extern void select_one_face(Window *win, zgl_Pixel pixel);
 extern void select_brush(Window *win, zgl_Pixel pixel);
+extern void select_vert(Window *win, zgl_Pixel pixel);
 extern void draw3D(Window *win);
 //extern Fix64Vec worldspace_to_eyespace(WitPoint in);
 extern void clip_trans_triangulate_and_draw_face(Window *win, Face *face, TransformedVertex const *const vbuf);
 extern void clip_and_transform(Window const *const win, Fix64Vec V0, Fix64Vec V1, Fix64Vec V2, size_t *out_num_subvs, Fix64Vec *out_subvs, TransformedVertex *out_subvbuf, bool *out_new);
-extern void draw_face
-(Window *win, Face *face, TransformedFace *tf);
-extern void draw_wireframe_face
+extern void epm_DrawFace(Window *win, Face *face, TransformedFace *tf);
+extern void epm_DrawWireframeFace
 (Window *win, TransformedWireFace *twf, zgl_Color color);
 
 /* -------------------------------------------------------------------------- */
@@ -101,6 +104,8 @@ extern FrustumParameters frset_ortho;
 /* -------------------------------------------------------------------------- */
 // Render Settings
 
+extern zgl_Color (*fn_set_fclr)(Face *);
+
 #define WIRE_OFF     0
 #define WIRE_NO_POLY 1
 #define WIRE_OVERLAY 2
@@ -129,4 +134,9 @@ extern void epm_ToggleLightMode(void);
 extern void epm_SetProjectionMode(int mode);
 extern void epm_ToggleProjectionMode(void);
 
+extern void epm_SetBSPVisualizerMode(bool state);
+extern void epm_ToggleBSPVisualizerMode(void);
+extern void epm_SetNormalVisualizerMode(bool state);
+extern void epm_ToggleNormalVisualizerMode(void);
+    
 #endif /* DRAW3D_H */

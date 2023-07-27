@@ -21,32 +21,51 @@ static epm_Result bsp_ComputeEdgesFromFaces(BSPTree *tree);
 static size_t g_i_node;
 static size_t g_i_face;
 
-void finalize_BSPTree(void) {    
-    g_p_final_tree->num_gen_vertices = g_gen.num_vertices;
-    g_p_final_tree->gen_vertices = g_gen.vertices;
-    g_p_final_tree->num_gen_faces = g_gen.num_faces;
-    g_p_final_tree->gen_faces = g_gen.faces;
+void finalize_BSPTree(void) {
+    /* Pass pointers to pre geometry. */
+    g_p_final_tree->num_pre_verts = g_gen.num_verts;
+    g_p_final_tree->pre_verts = g_gen.verts;
+    g_p_final_tree->pre_vert_exts = g_gen.vert_exts;
+
+    g_p_final_tree->num_pre_edges = g_gen.num_edges;
+    g_p_final_tree->pre_edges = g_gen.edges;
     
-    g_p_final_tree->num_vertices = g_maker_tree.num_vertices;
-    g_p_final_tree->vertices = zgl_Calloc(g_p_final_tree->num_vertices,
-                                          sizeof(WorldVec));
-    //    g_p_final_tree->vbris = zgl_Calloc(g_p_final_tree->num_vertices,
-    //                                                    sizeof(uint8_t));
-    g_p_final_tree->vertex_colors = zgl_Calloc(g_p_final_tree->num_vertices,
+    g_p_final_tree->num_pre_faces = g_gen.num_faces;
+    g_p_final_tree->pre_faces = g_gen.faces;
+    g_p_final_tree->pre_face_exts = g_gen.face_exts;
+
+
+    
+    g_p_final_tree->num_verts = g_maker_tree.num_verts;
+    g_p_final_tree->verts = zgl_Calloc(g_p_final_tree->num_verts,
+                                       sizeof(WorldVec));
+    g_p_final_tree->vert_exts = zgl_Calloc(g_p_final_tree->num_verts,
+                                           sizeof(BSPVertExt));
+    g_p_final_tree->vert_clrs = zgl_Calloc(g_p_final_tree->num_verts,
                                                sizeof(zgl_Color));
 
-    for (size_t i_v = 0; i_v < g_p_final_tree->num_vertices; i_v++) {
-        g_p_final_tree->vertices[i_v] = g_maker_tree.vertices[i_v].vertex;
-        g_p_final_tree->vertex_colors[i_v] =
-            g_maker_tree.vertices[i_v].flags & MV_FROM_CUT ?
+    for (size_t i_bsp_v = 0; i_bsp_v < g_p_final_tree->num_verts; i_bsp_v++) {
+        g_p_final_tree->verts[i_bsp_v] = g_maker_tree.verts[i_bsp_v].vertex;
+        g_p_final_tree->vert_clrs[i_bsp_v] =
+            g_maker_tree.verts[i_bsp_v].flags & MV_FROM_CUT ?
             0xFF0000 :
             0x00FF00;
+
+        /* Link bsp backward to pre (or to nothing) */
+        int32_t i_pre_v = g_p_final_tree->vert_exts[i_bsp_v].i_pre_vert =
+            g_maker_tree.verts[i_bsp_v].i_pre_vert;
+
+        /* Link pre (if it exists) forward to bsp */
+        if (i_pre_v != -1) {
+            PreVertExt *pre_vX = g_gen.vert_exts + i_pre_v;
+            pre_vX->i_bsp_vert = (uint32_t)i_bsp_v;
+        }
     }
 
 
     g_p_final_tree->num_edges = g_maker_tree.num_msh_edges;
     g_p_final_tree->edges = zgl_Calloc(g_p_final_tree->num_edges, sizeof(Edge));
-    g_p_final_tree->edge_colors = zgl_Calloc(g_p_final_tree->num_edges,
+    g_p_final_tree->edge_clrs = zgl_Calloc(g_p_final_tree->num_edges,
                                              sizeof(zgl_Color));
 
     for (size_t i_e = 0; i_e < g_p_final_tree->num_edges; i_e++) {
@@ -63,7 +82,7 @@ void finalize_BSPTree(void) {
         if (color == 0) {
             color = 0x00FF00;
         }
-        g_p_final_tree->edge_colors[i_e] = color;
+        g_p_final_tree->edge_clrs[i_e] = color;
     }
 
     g_p_final_tree->num_nodes     = g_maker_tree.num_nodes;
@@ -72,8 +91,8 @@ void finalize_BSPTree(void) {
                                                sizeof(BSPNode));
     g_p_final_tree->faces         = zgl_Calloc(g_p_final_tree->num_faces,
                                                sizeof(Face));
-    g_p_final_tree->bsp_faces     = zgl_Calloc(g_p_final_tree->num_faces,
-                                               sizeof(BSPFace));
+    g_p_final_tree->face_exts     = zgl_Calloc(g_p_final_tree->num_faces,
+                                               sizeof(BSPFaceExt));
     g_p_final_tree->num_cuts      = g_maker_tree.num_cuts;
 
 
@@ -84,19 +103,6 @@ void finalize_BSPTree(void) {
     bsp_ConvertMakerBSPNode(g_maker_tree.root, NULL, -1, 0);
     g_i_node = 0;
     g_i_face = 0;
-
-    // TODO: Interpolate instead of really computing.
-    /*
-    void epm_ComputeVertexBrightnesses(size_t num_vertices, WorldVec const vertices[], size_t num_lights, Light const lights[], uint8_t out_vbri[]);
-    epm_ComputeVertexBrightnesses(g_p_final_tree->num_vertices,
-                                  g_p_final_tree->vertices,
-                                  g_p_final_tree->vbris);
-    */
-    
-    /*
-    epm_ComputeEdgesFromFaces(g_p_final_tree->num_faces, g_p_final_tree->faces,
-                              &g_p_final_tree->num_edges, &g_p_final_tree->edges);
-    */
 }
 
 
@@ -127,40 +133,45 @@ static void bsp_ConvertMakerBSPNode
     for (Maker_BSPFace *mbsp_face = g_maker_tree.mbsp_faces + maker_node->i_mbsp_faces;
          mbsp_face;
          mbsp_face = mbsp_face->next_in_node) {
-        Face const *og_face     = g_gen.faces + mbsp_face->i_gen_face;
-        Face *final_face        = g_p_final_tree->faces + g_i_face;
-        BSPFace *final_bsp_face = g_p_final_tree->bsp_faces + g_i_face;
+        Face const *pre_face     = g_gen.faces + mbsp_face->i_pre_face;
+        Face *final_bsp_face        = g_p_final_tree->faces + g_i_face;
+        BSPFaceExt *final_bsp_face_ext = g_p_final_tree->face_exts + g_i_face;
+
+        /* Link bsp backward to pre */
+        if (side == NODESIDE_FRONT) {
+            final_bsp_face_ext->bspflags = 0 | BSP_FRONT_MASK;
+        }
+        else if (side == NODESIDE_BACK) {
+            final_bsp_face_ext->bspflags = 0;
+        }
+        final_bsp_face_ext->i_pre_face = mbsp_face->i_pre_face;
+        final_bsp_face_ext->depth = depth;
+
+        /* Link pre forward to bsp */
+        PreFaceExt *pre_fX = g_gen.face_exts + final_bsp_face_ext->i_pre_face;
+        pre_fX->i_bsp_faces[pre_fX->num_bsp_faces++] = (uint32_t)g_i_face;
         g_i_face++;
         tmp_count++;
 
-        if (side == NODESIDE_FRONT) {
-            final_bsp_face->bspflags = 0 | BSP_FRONT_MASK;
-        }
-        else if (side == NODESIDE_BACK) {
-            final_bsp_face->bspflags = 0;
-        }
-
-        final_bsp_face->i_gen_face = mbsp_face->i_gen_face;
-        final_bsp_face->depth = depth;
         
-        final_face->i_v[0] = mbsp_face->i_v0;
-        final_face->i_v[1] = mbsp_face->i_v1;
-        final_face->i_v[2] = mbsp_face->i_v2;
-        final_face->flags = 0;
-        final_face->normal = og_face->normal;
-        final_face->i_tex = og_face->i_tex;
-        final_face->fbri = og_face->fbri;
+        final_bsp_face->i_v[0] = mbsp_face->i_v0;
+        final_bsp_face->i_v[1] = mbsp_face->i_v1;
+        final_bsp_face->i_v[2] = mbsp_face->i_v2;
+        final_bsp_face->flags = 0;
+        final_bsp_face->normal = pre_face->normal;
+        final_bsp_face->i_tex = pre_face->i_tex;
+        final_bsp_face->fbri = pre_face->fbri;
         
         if (mbsp_face->flags & MF_FROM_CUT) {
-            bsp_InterpolateAttributes2(og_face, final_face);
+            bsp_InterpolateAttributes2(pre_face, final_bsp_face);
         }
         else {
-            final_face->vtxl[0] = og_face->vtxl[0];
-            final_face->vtxl[1] = og_face->vtxl[1];
-            final_face->vtxl[2] = og_face->vtxl[2];
-            final_face->vbri[0] = og_face->vbri[0];
-            final_face->vbri[1] = og_face->vbri[1];
-            final_face->vbri[2] = og_face->vbri[2];
+            final_bsp_face->vtxl[0] = pre_face->vtxl[0];
+            final_bsp_face->vtxl[1] = pre_face->vtxl[1];
+            final_bsp_face->vtxl[2] = pre_face->vtxl[2];
+            final_bsp_face->vbri[0] = pre_face->vbri[0];
+            final_bsp_face->vbri[1] = pre_face->vbri[1];
+            final_bsp_face->vbri[2] = pre_face->vbri[2];
         }
     }
     dibassert(tmp_count == final_node->num_faces);
@@ -175,24 +186,24 @@ static void bsp_InterpolateAttributes2
 (Face const *og_face, Face *final_face) {
     Fix64Vec V[3], P[3];
 
-    x_of(V[0]) = x_of(g_gen.vertices[og_face->i_v[0]]);
-    y_of(V[0]) = y_of(g_gen.vertices[og_face->i_v[0]]);
-    z_of(V[0]) = z_of(g_gen.vertices[og_face->i_v[0]]);
-    x_of(V[1]) = x_of(g_gen.vertices[og_face->i_v[1]]);
-    y_of(V[1]) = y_of(g_gen.vertices[og_face->i_v[1]]);
-    z_of(V[1]) = z_of(g_gen.vertices[og_face->i_v[1]]);
-    x_of(V[2]) = x_of(g_gen.vertices[og_face->i_v[2]]);
-    y_of(V[2]) = y_of(g_gen.vertices[og_face->i_v[2]]);
-    z_of(V[2]) = z_of(g_gen.vertices[og_face->i_v[2]]);
-    x_of(P[0]) = x_of(g_p_final_tree->vertices[final_face->i_v[0]]);
-    y_of(P[0]) = y_of(g_p_final_tree->vertices[final_face->i_v[0]]);
-    z_of(P[0]) = z_of(g_p_final_tree->vertices[final_face->i_v[0]]);
-    x_of(P[1]) = x_of(g_p_final_tree->vertices[final_face->i_v[1]]);
-    y_of(P[1]) = y_of(g_p_final_tree->vertices[final_face->i_v[1]]);
-    z_of(P[1]) = z_of(g_p_final_tree->vertices[final_face->i_v[1]]);
-    x_of(P[2]) = x_of(g_p_final_tree->vertices[final_face->i_v[2]]);
-    y_of(P[2]) = y_of(g_p_final_tree->vertices[final_face->i_v[2]]);
-    z_of(P[2]) = z_of(g_p_final_tree->vertices[final_face->i_v[2]]);
+    x_of(V[0]) = x_of(g_gen.verts[og_face->i_v[0]]);
+    y_of(V[0]) = y_of(g_gen.verts[og_face->i_v[0]]);
+    z_of(V[0]) = z_of(g_gen.verts[og_face->i_v[0]]);
+    x_of(V[1]) = x_of(g_gen.verts[og_face->i_v[1]]);
+    y_of(V[1]) = y_of(g_gen.verts[og_face->i_v[1]]);
+    z_of(V[1]) = z_of(g_gen.verts[og_face->i_v[1]]);
+    x_of(V[2]) = x_of(g_gen.verts[og_face->i_v[2]]);
+    y_of(V[2]) = y_of(g_gen.verts[og_face->i_v[2]]);
+    z_of(V[2]) = z_of(g_gen.verts[og_face->i_v[2]]);
+    x_of(P[0]) = x_of(g_p_final_tree->verts[final_face->i_v[0]]);
+    y_of(P[0]) = y_of(g_p_final_tree->verts[final_face->i_v[0]]);
+    z_of(P[0]) = z_of(g_p_final_tree->verts[final_face->i_v[0]]);
+    x_of(P[1]) = x_of(g_p_final_tree->verts[final_face->i_v[1]]);
+    y_of(P[1]) = y_of(g_p_final_tree->verts[final_face->i_v[1]]);
+    z_of(P[1]) = z_of(g_p_final_tree->verts[final_face->i_v[1]]);
+    x_of(P[2]) = x_of(g_p_final_tree->verts[final_face->i_v[2]]);
+    y_of(P[2]) = y_of(g_p_final_tree->verts[final_face->i_v[2]]);
+    z_of(P[2]) = z_of(g_p_final_tree->verts[final_face->i_v[2]]);
     
     Fix64 area = triangle_area_3D(V[0], V[1], V[2]);
     dibassert(area != 0);
@@ -212,12 +223,15 @@ static void bsp_InterpolateAttributes2
         final_face->vtxl[i].x = (Fix32)((B0*vtxl0.x + B1*vtxl1.x + B2*vtxl2.x)>>16);
         final_face->vtxl[i].y = (Fix32)((B0*vtxl0.y + B1*vtxl1.y + B2*vtxl2.y)>>16);
         tmp_vbri = (B0*vbri0 + B1*vbri1 + B2*vbri2)>>16;
-        if (tmp_vbri < 0) // sometimes -1 but seemingly never -2 or lower
+        if (tmp_vbri < 0) {// sometimes -1 but seemingly never -2 or lower
             final_face->vbri[i] = 0;
-        else if (tmp_vbri > 255)
+        }
+        else if (tmp_vbri > 255) {
             final_face->vbri[i] = 255;
-        else
+        }
+        else {
             final_face->vbri[i] = (uint8_t)tmp_vbri;
+        }
     }
 }
 

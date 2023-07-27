@@ -20,13 +20,19 @@
 
 // TODO: In orthographic project, don't draw sky.
 
+extern bool g_skymask;
+
 static int8_t const zigzag_i_v[3][11] = {
     {0, -1, -1, -2, -2, -3, -3, -4, -4, -5, -5},
     {1,  0,  2, -1,  3, -2,  4, -3,  5, -4,  6},
     {2,  2,  3,  3,  4,  4,  5,  5,  6,  6,  7}
 };
 
-zgl_Color Normal_to_Color(WorldVec normal);
+extern zgl_Color Normal_to_Color(WorldVec normal);
+zgl_Color set_fclr_normal(Face *face) {
+    return Normal_to_Color(face->normal);
+}
+zgl_Color (*fn_set_fclr)(Face *) = set_fclr_normal;
 
 FrustumParameters frset_persp = {
     .type = PROJ_PERSPECTIVE,
@@ -65,6 +71,7 @@ DrawSettings g_settings = {
     .wire_mode = WIRE_OFF,
     .wiregeo = WIREGEO_BSP_FACEWISE,
     .BSP_visualizer = false,
+    .normal_visualizer = false,
 };
 
 #define VERTEX_BUFFER_SIZE 10000
@@ -93,23 +100,23 @@ extern void clip_and_transform(Window const *const win, Fix64Vec V0, Fix64Vec V1
 
 static void draw_bigbox(Window *win);
 
-static void draw_faces
+static void epm_DrawFaces
 (Window *win, FaceSet *fset, TransformedVertex const *const vbuf);
 
-extern void draw_face(Window *win, Face *face, TransformedFace *tf);
-
-extern void draw_wireframe_face
+extern void epm_DrawWireframeFace
 (Window *win, TransformedWireFace *twf, zgl_Color color);
 
-static void draw_wireframe_faces
-(Window *win, FaceSet *fset, zgl_Color color, TransformedVertex const *const vbuf);
+extern void epm_DrawFace(Window *win, Face *face, TransformedFace *tf);
 
-static void draw_wireframe_edges
+static void epm_DrawEdges
 (Window *win, Frustum *fr, EdgeSet *eset, zgl_Color color, TransformedVertex const *const vbuf, uint8_t flags);
+
+static void epm_DrawEdgesByFace
+(Window *win, FaceSet *fset, zgl_Color color, TransformedVertex const *const vbuf);
 
 static void draw_wireframe_edges_BSP_colors(Window *win, Frustum *fr, EdgeSet *eset, zgl_Color color, TransformedVertex const *const vbuf, uint8_t wireflags);
 
-static void draw_vertices(Window *win, size_t num_vertices, TransformedVertex const *const vbuf);
+static void epm_DrawVertices(Window *win, size_t num_vertices, TransformedVertex const *const vbuf);
 
 static uint8_t (*fn_ComputeViscode)(Fix64Vec vertex);
 static uint8_t ComputeViscode_ortho(Fix64Vec vertex);
@@ -192,20 +199,20 @@ static void draw3D_wireframe_mode(Window *win) {
     if (g_settings.wiregeo == WIREGEO_BRUSH) {
         for (BrushNode *node = g_world.geo_brush->head; node; node = node->next) {
             Brush *brush = node->brush;
-            epm_TransformVertexBatch(win, g_p_frustum, brush->num_vertices, brush->vertices, g_vbuf);
-            draw_wireframe_edges(win, g_p_frustum, &EdgeSet_of(*brush), color_selected_brush, g_vbuf, 0);
+            epm_TransformVertexBatch(win, g_p_frustum, brush->num_verts, brush->verts, g_vbuf);
+            epm_DrawEdges(win, g_p_frustum, &EdgeSet_of(*brush), color_selected_brush, g_vbuf, 0);
         }
     }
     else if (g_settings.wiregeo == WIREGEO_PREBSP) {
         epm_TransformVertexBatch(win, g_p_frustum,
-                                 g_world.geo_prebsp->num_vertices, g_world.geo_prebsp->vertices, g_vbuf);
-        draw_wireframe_edges(win, g_p_frustum,
+                                 g_world.geo_prebsp->num_verts, g_world.geo_prebsp->verts, g_vbuf);
+        epm_DrawEdges(win, g_p_frustum,
                              &EdgeSet_of(*g_world.geo_prebsp), 0x00FF00, g_vbuf, 0);
         
     }
     else if (g_settings.wiregeo == WIREGEO_BSP_FACEWISE) {
         epm_TransformVertexBatch(win, g_p_frustum,
-                                 g_world.geo_bsp->num_vertices, g_world.geo_bsp->vertices, g_vbuf);
+                                 g_world.geo_bsp->num_verts, g_world.geo_bsp->verts, g_vbuf);
 
         WorldVec BSPpos = {{tf.x, tf.y, tf.z}};
         if (g_settings.proj_mode == PROJ_ORTHOGRAPHIC) {
@@ -214,11 +221,11 @@ static void draw3D_wireframe_mode(Window *win) {
             z_of(BSPpos) -= (Fix32)FIX_MUL((g_p_frustum->D-g_p_frustum->F), z_of(cam.view_vec));
         }
     
-        draw_BSPNode_wireframe(win, g_world.geo_bsp, &g_world.geo_bsp->nodes[0], BSPpos, g_vbuf);
+        draw_BSPTreeWireframe(win, g_world.geo_bsp, &g_world.geo_bsp->nodes[0], BSPpos, g_vbuf);
     }
     else if (g_settings.wiregeo == WIREGEO_BSP_EDGEWISE) {
         epm_TransformVertexBatch(win, g_p_frustum,
-                                 g_world.geo_bsp->num_vertices, g_world.geo_bsp->vertices, g_vbuf);
+                                 g_world.geo_bsp->num_verts, g_world.geo_bsp->verts, g_vbuf);
         draw_wireframe_edges_BSP_colors(win, g_p_frustum,
                              &EdgeSet_of(*g_world.geo_bsp), 0x00FF00, g_vbuf, 0);
     }
@@ -296,15 +303,15 @@ static void epm_DrawBillboardIcon(Window *win, zgl_MipMap *icon, WorldVec v) {
 
 static void draw_BrushSelection(Window *win) {
     // Draw brush selection; always wireframe.
-    for (BrushSelectionNode *node = brushsel.head; node; node = node->next) {
-        Brush *brush = node->brush;
-        epm_TransformVertexBatch(win, g_p_frustum, brush->num_vertices, brush->vertices, g_vbuf);
-        draw_wireframe_edges(win, g_p_frustum, &EdgeSet_of(*brush), color_selected_brush, g_vbuf, 0);
+    for (SelectionNode *node = sel_brush.head; node; node = node->next) {
+        Brush *brush = node->obj;
+        epm_TransformVertexBatch(win, g_p_frustum, brush->num_verts, brush->verts, g_vbuf);
+        epm_DrawEdges(win, g_p_frustum, &EdgeSet_of(*brush), color_selected_brush, g_vbuf, 0);
     }
     
     // Draw brush selection point-of-reference: TODO: Make a cross shape or
     // larger dot.
-    epm_TransformVertex(win, g_p_frustum, brushsel.POR, g_vbuf);
+    epm_TransformVertex(win, g_p_frustum, brushsel_POR, g_vbuf);
     zgl_mPixel tmp4 = {(Fix32)g_vbuf[0].pixel.XY.x,
                        (Fix32)g_vbuf[0].pixel.XY.y};
     if ( ! g_vbuf[0].vis) {
@@ -312,9 +319,28 @@ static void draw_BrushSelection(Window *win) {
     }
 }
 
+typedef struct BrushVertEntry {
+    Brush *brush;
+    uint32_t i_v;
+} BrushVertEntry;
+static size_t num_tmp_v;
+static WorldVec tmp_v[64];
+static void draw_VertexSelection(Window *win) {
+    num_tmp_v = sel_brushvert.num_selected;
+    size_t i = 0;
+    for (SelectionNode *node = sel_brushvert.head; node; node = node->next) {
+        tmp_v[i] = ((BrushVertEntry *)node->obj)->brush->verts[((BrushVertEntry *)node->obj)->i_v];
+        i++;
+    }
+    dibassert(i == num_tmp_v);
+
+    epm_TransformVertexBatch(win, g_p_frustum, num_tmp_v, tmp_v, g_vbuf);
+    epm_DrawVertices(win, num_tmp_v, g_vbuf);
+}
+
 static void draw_BrushFrame(Window *win) {
-    epm_TransformVertexBatch(win, g_p_frustum, frame->num_vertices, frame->vertices, g_vbuf);
-    draw_wireframe_edges(win, g_p_frustum, &EdgeSet_of(*frame), color_brushframe, g_vbuf, WIREFLAGS_DOTTED);
+    epm_TransformVertexBatch(win, g_p_frustum, g_frame->num_verts, g_frame->verts, g_vbuf);
+    epm_DrawEdges(win, g_p_frustum, &EdgeSet_of(*g_frame), color_brushframe, g_vbuf, WIREFLAGS_DOTTED);
 }
 
 static void draw_picked_points(Window *win) {
@@ -343,9 +369,9 @@ static void draw_t_junctions(Window *win) {
 }
 
 static void draw_Mesh(Window *win, Mesh *mesh) {
-    epm_TransformVertexBatch(win, g_p_frustum, mesh->num_vertices, mesh->vertices, g_vbuf);
-    //draw_wireframe_edges(win, g_p_frustum, &EdgeSet_of(*mesh), 0xF0f998, g_vbuf, WIREFLAGS_NO_VERTICES);
-    draw_faces(win, &FaceSet_of(*mesh), g_vbuf);
+    epm_TransformVertexBatch(win, g_p_frustum, mesh->num_verts, mesh->verts, g_vbuf);
+    //epm_DrawEdges(win, g_p_frustum, &EdgeSet_of(*mesh), 0xF0f998, g_vbuf, WIREFLAGS_NO_VERTICES);
+    epm_DrawFaces(win, &FaceSet_of(*mesh), g_vbuf);
 }
 
 static void draw_sky(Window *win) {
@@ -355,12 +381,12 @@ static void draw_sky(Window *win) {
     tf.y = y_of(skycam);
     tf.z = z_of(skycam);
     
-    epm_TransformVertexBatch(win, g_p_frustum, skybox.num_vertices, skybox.vertices, g_vbuf);
+    epm_TransformVertexBatch(win, g_p_frustum, skybox.num_verts, skybox.verts, g_vbuf);
 
     
-    //draw_wireframe_edges(win, g_p_frustum, &EdgeSet_of(skybox), 0xF0f998, g_vbuf, WIREFLAGS_NO_VERTICES);
+    //epm_DrawEdges(win, g_p_frustum, &EdgeSet_of(skybox), 0xF0f998, g_vbuf, WIREFLAGS_NO_VERTICES);
     g_rasterflags |= RASTERFLAG_SKY;
-    draw_faces(win, &FaceSet_of(skybox), g_vbuf);
+    epm_DrawFaces(win, &FaceSet_of(skybox), g_vbuf);
     g_rasterflags &= ~RASTERFLAG_SKY;
 
     tf.x = x_of(tf_prev);
@@ -379,13 +405,13 @@ void draw3D(Window *win) {
     draw_bigbox(win);
     g_farclip = tmp;
 
-    if (g_world.loaded) {
+    if (g_world.worldflags & WF_LOADED_BSPGEO) {
         if (g_settings.wire_mode == WIRE_NO_POLY) {
             draw3D_wireframe_mode(win);
         }
         else {
             epm_TransformVertexBatch(win, g_p_frustum,
-                                     g_world.geo_bsp->num_vertices, g_world.geo_bsp->vertices, g_vbuf);
+                                     g_world.geo_bsp->num_verts, g_world.geo_bsp->verts, g_vbuf);
             WorldVec BSPpos = {{tf.x, tf.y, tf.z}};
             if (g_settings.proj_mode == PROJ_ORTHOGRAPHIC) {
                 x_of(BSPpos) -= (Fix32)FIX_MUL((g_p_frustum->D-g_p_frustum->F), x_of(cam.view_vec));
@@ -396,9 +422,12 @@ void draw3D(Window *win) {
         }
     }
 
-    draw_BrushSelection(win);
+    if (g_world.worldflags & WF_LOADED_BRUSHGEO) {
+        draw_BrushSelection(win);
+        draw_BrushFrame(win);
+    }
 
-    draw_BrushFrame(win);
+    draw_VertexSelection(win);
     
     draw_picked_points(win);
 
@@ -407,7 +436,7 @@ void draw3D(Window *win) {
     draw_icons(win);
 
     draw_sky(win);
-    
+        
     //draw_Mesh(win, &skybox);
 }
 
@@ -415,12 +444,16 @@ void draw3D(Window *win) {
 static void draw_bigbox(Window *win) {
     // an underlay of the world limits.
     epm_TransformVertexBatch(win, g_p_frustum,
-                       view3D_bigbox.num_vertices, view3D_bigbox.vertices, g_vbuf);
-    draw_wireframe_edges(win, g_p_frustum, &view3D_bigbox, 0x2596BE, g_vbuf, WIREFLAGS_NO_VERTICES);
+                             view3D_bigbox.num_verts, view3D_bigbox.verts,
+                             g_vbuf);
+    epm_DrawEdges(win, g_p_frustum, &view3D_bigbox, 0x2596BE, g_vbuf,
+                  WIREFLAGS_NO_VERTICES);
 
     epm_TransformVertexBatch(win, g_p_frustum,
-                       view3D_grid.num_vertices, view3D_grid.vertices, g_vbuf);
-    draw_wireframe_edges(win, g_p_frustum, &view3D_grid, 0x235367, g_vbuf, WIREFLAGS_NO_VERTICES);
+                             view3D_grid.num_verts, view3D_grid.verts,
+                             g_vbuf);
+    epm_DrawEdges(win, g_p_frustum, &view3D_grid, 0x235367, g_vbuf,
+                  WIREFLAGS_NO_VERTICES);
 }
 
 
@@ -574,8 +607,8 @@ void epm_TransformVertexBatch
 static void transform_Model
 (Window const *const win, Frustum *const fr, int width, Model *model,
  TransformedVertex * out_vbuf) {
-    size_t num_vertices = model->mesh.num_vertices;
-    WorldVec *vertices = model->mesh.vertices;
+    size_t num_vertices = model->mesh.num_verts;
+    WorldVec *vertices = model->mesh.verts;
     WorldVec translation = model->translation;
     
     Fix64
@@ -624,7 +657,7 @@ static void transform_Model
 }
 
 
-void draw_wireframe_face
+void epm_DrawWireframeFace
 (Window *win, TransformedWireFace *twf, zgl_Color color) {
     if (area(twf->pixel[0].XY, twf->pixel[1].XY, twf->pixel[2].XY) <= 0) {
         return;
@@ -670,7 +703,7 @@ void draw_wireframe_face
     }
 }
 
-void draw_face(Window *win, Face *face, TransformedFace *tf) {    
+void epm_DrawFace(Window *win, Face *face, TransformedFace *tf) {    
     DepthPixel
         scr_V0 = tf->tv[0].pixel,
         scr_V1 = tf->tv[1].pixel,
@@ -693,7 +726,6 @@ void draw_face(Window *win, Face *face, TransformedFace *tf) {
                                      FixPoint2D_64to32(scr_V2.XY),
                                      FixPoint2D_64to32(scr_V0.XY),
                                      0xFFFFFF);
-
     }
     
     if ( ! (tf->tv[0].vis | tf->tv[1].vis | tf->tv[2].vis)) { // no clipping needed
@@ -704,22 +736,19 @@ void draw_face(Window *win, Face *face, TransformedFace *tf) {
             .fbri = face->fbri,
             .ftex = textures[face->i_tex].pixarr,
             .shft = textures[face->i_tex].log2_wh,
-            .fclr = 0};
+            .fclr = fn_set_fclr(face)};
 
+        // TODO: Move this shish, or make a generic "pre-draw-triangle-hook"
         if (streq(textures[face->i_tex].name, "sky") && ! (g_rasterflags & RASTERFLAG_SKY)) {
-            extern bool g_skymask;
             g_skymask = true;
         }
-            
         
         if (face->flags & FC_SELECTED) {
             g_rasterflags |= RASTERFLAG_HILIT;
         }
         draw_Triangle(win, &screen_tri);
         g_rasterflags &= ~RASTERFLAG_HILIT;
-
-        extern bool g_skymask;
-        g_skymask = false;
+        g_skymask = false; // TODO: Move this shish
     }
     else { // 2D clipping needed
         epm_Log(LT_WARN, "2D clipping phase triggered.");
@@ -836,6 +865,7 @@ void draw_face(Window *win, Face *face, TransformedFace *tf) {
             subtri.vpxl[1] = &subV1;
             subtri.vpxl[2] = &subV2;
 
+            subtri.fclr = fn_set_fclr(face);
             draw_Triangle(win, &subtri);
         }
     }
@@ -857,7 +887,7 @@ static void draw_wireframe_edges_BSP_colors(Window *win, Frustum *fr, EdgeSet *e
     Edge *edges = eset->edges;
 
     for (size_t i_edge = 0; i_edge < num_edges; i_edge++) {
-        color = g_world.geo_bsp->edge_colors[i_edge];
+        color = g_world.geo_bsp->edge_clrs[i_edge];
         size_t i_v0 = edges[i_edge].i_v0;
         size_t i_v1 = edges[i_edge].i_v1;
 
@@ -910,11 +940,11 @@ static void draw_wireframe_edges_BSP_colors(Window *win, Frustum *fr, EdgeSet *e
     }
 
     if ( ! (wireflags & WIREFLAGS_NO_VERTICES)) {
-        size_t num_v = eset->num_vertices;
+        size_t num_v = eset->num_verts;
         for (size_t i_v = 0; i_v < num_v; i_v++) {
             if (vbuf[i_v].vis) continue;
 
-            color = g_world.geo_bsp->vertex_colors[i_v];            
+            color = g_world.geo_bsp->vert_clrs[i_v];            
             zglDraw_mPixelDot(g_scr, &win->mrect, &(zgl_mPixel){(Fix32)vbuf[i_v].pixel.XY.x, (Fix32)vbuf[i_v].pixel.XY.y}, color);
         }    
     }
@@ -927,7 +957,7 @@ static void draw_wireframe_edges_BSP_colors(Window *win, Frustum *fr, EdgeSet *e
 /**
    Use edge-based culling and clipping.
 */
-static void draw_wireframe_edges(Window *win, Frustum *fr, EdgeSet *eset, zgl_Color color, TransformedVertex const *const vbuf, uint8_t wireflags) {
+static void epm_DrawEdges(Window *win, Frustum *fr, EdgeSet *eset, zgl_Color color, TransformedVertex const *const vbuf, uint8_t wireflags) {
     int (*fn_drawseg)(zgl_PixelArray *, const zgl_mPixelRect *,
                       const zgl_mPixel, const zgl_mPixel, const zgl_Color);
     fn_drawseg =
@@ -991,7 +1021,7 @@ static void draw_wireframe_edges(Window *win, Frustum *fr, EdgeSet *eset, zgl_Co
     }
 
     if ( ! (wireflags & WIREFLAGS_NO_VERTICES)) {
-        size_t num_v = eset->num_vertices;
+        size_t num_v = eset->num_verts;
         for (size_t i_v = 0; i_v < num_v; i_v++) {
             if (vbuf[i_v].vis) continue;
             zglDraw_mPixelDot(g_scr, &win->mrect, &(zgl_mPixel){(Fix32)vbuf[i_v].pixel.XY.x, (Fix32)vbuf[i_v].pixel.XY.y}, color);
@@ -1003,7 +1033,7 @@ static void draw_wireframe_edges(Window *win, Frustum *fr, EdgeSet *eset, zgl_Co
    Draw mesh as wireframe, but use face-based culling and clipping. Visualizes
    triangle subdivisions.
 */
-static void draw_wireframe_faces(Window *win, FaceSet *fset, zgl_Color color, TransformedVertex const *const vbuf) {
+static void epm_DrawEdgesByFace(Window *win, FaceSet *fset, zgl_Color color, TransformedVertex const *const vbuf) {
     size_t num_faces = fset->num_faces;
     Face *faces = fset->faces;
 
@@ -1051,7 +1081,7 @@ static void draw_wireframe_faces(Window *win, FaceSet *fset, zgl_Color color, Tr
                      (Fix32)(twface.pixel[2].XY.y>>16), FC_MONOGRAM1, 0xFFFFFF);
             }
             
-            draw_wireframe_face(win, &twface, color);
+            epm_DrawWireframeFace(win, &twface, color);
         }
         else { // 3D clipping
             size_t num_vertices;
@@ -1078,7 +1108,7 @@ static void draw_wireframe_faces(Window *win, FaceSet *fset, zgl_Color color, Tr
                     color,
                 };
                 
-                draw_wireframe_face(win, &twf, color);
+                epm_DrawWireframeFace(win, &twf, color);
             }
             else { // num_vertices >= 4
                 for (size_t i_subface = 0; i_subface + 2 + 1 < num_vertices; i_subface++) {
@@ -1092,7 +1122,7 @@ static void draw_wireframe_faces(Window *win, FaceSet *fset, zgl_Color color, Tr
                         color,
                     };
                 
-                    draw_wireframe_face(win, &twf, color);
+                    epm_DrawWireframeFace(win, &twf, color);
                 }
                 
                 // handle last one separately for correct wire coloring.
@@ -1114,7 +1144,7 @@ static void draw_wireframe_faces(Window *win, FaceSet *fset, zgl_Color color, Tr
                     };
                 }
                 
-                draw_wireframe_face(win, &twf, color);
+                epm_DrawWireframeFace(win, &twf, color);
             }
 
             if (face->flags & FC_SELECTED) {
@@ -1201,12 +1231,7 @@ void epm_DrawTriangleZigZag
         subface.vtxl[2] = tx[i_v2];
         subtface.vbri[2] = vbri[i_v2];
         
-        if (g_settings.BSP_visualizer){
-            draw_face_BSP_visualizer(win, &subface, &subtface);
-        }
-        else {
-            draw_face(win, &subface, &subtface);
-        }
+        epm_DrawFace(win, &subface, &subtface);
     }
 }
 
@@ -1265,7 +1290,7 @@ void clip_trans_triangulate_and_draw_face(Window *win, Face *face, TransformedVe
     return;
 }
 
-static void draw_vertices(Window *win, size_t num_vertices, TransformedVertex const *const vbuf) {
+static void epm_DrawVertices(Window *win, size_t num_vertices, TransformedVertex const *const vbuf) {
     for (size_t i_v = 0; i_v < num_vertices; i_v++) {
         zgl_mPixel p = {(Fix32)vbuf[i_v].pixel.XY.x, (Fix32)vbuf[i_v].pixel.XY.y};
         uint8_t vis0 = vbuf[i_v].vis;
@@ -1275,13 +1300,13 @@ static void draw_vertices(Window *win, size_t num_vertices, TransformedVertex co
             continue;
         }
         else {
-            zglDraw_mPixelDot(g_scr, &win->mrect, &p, 0xFF00FF);
+            zglDraw_mPixelDot(g_scr, &win->mrect, &p, 0x00FFFF);
         }
 
     }
 }
 
-static void draw_faces(Window *win, FaceSet *fset, TransformedVertex const *const vbuf) {
+static void epm_DrawFaces(Window *win, FaceSet *fset, TransformedVertex const *const vbuf) {
     size_t num_faces = fset->num_faces;
     Face *faces = fset->faces;
     
@@ -1315,7 +1340,7 @@ static void draw_faces(Window *win, FaceSet *fset, TransformedVertex const *cons
             tface.vbri[0] = 255;
             tface.vbri[1] = 255;
             tface.vbri[2] = 255;
-            draw_face(win, face, &tface);
+            epm_DrawFace(win, face, &tface);
         }
         else {
             clip_trans_triangulate_and_draw_face(win, face, vbuf);
@@ -1349,38 +1374,112 @@ static void draw_faces(Window *win, FaceSet *fset, TransformedVertex const *cons
 
 
 
+int32_t BSPVertex_below(Window *win, zgl_Pixel pixel) {
+    // Contrary to the name, this does not utilize the BSP tree structure to
+    // improve efficiecy. It is so named because it returns a vertex from the
+    // BSP geometry.
 
-void select_vertex(Window *win, zgl_Pixel pixel) {
-    vertex_below(win, pixel, g_p_frustum);
+    Fix32 best_dist = 10<<16;
+    int32_t best_i_v = -1;
+    
+    for (uint32_t i_v = 0; i_v < g_world.geo_bsp->num_verts; i_v++) {
+        WorldVec *v = g_world.geo_bsp->verts + i_v;
+        TransformedVertex tv;
+        
+        epm_TransformVertex(win, g_p_frustum, *v, &tv);
+        
+        if (tv.vis) continue;
+        
+        Fix32 dist = (Fix32)(MAX(ABS((pixel.x<<16) - tv.pixel.XY.x),
+                                 ABS((pixel.y<<16) - tv.pixel.XY.y)));
+
+        if (dist >= best_dist) continue;
+
+        // new best
+        best_dist = dist;
+        best_i_v = i_v;
+    }
+
+    return best_i_v;
+}
+
+void epm_SelectBrushesByVertex(Window *win, zgl_Pixel pixel) {
+    // Find vertex in BSP geometry below mouse position, and then select all
+    // brushes which have that vertex (recall that a BSP vertex may
+    // originally come from zero or more brush sources).
+
+    int32_t i_bsp_v = BSPVertex_below(win, pixel);
+    if (i_bsp_v == -1) return;
+    
+    WorldVec *v = g_world.geo_bsp->verts + i_bsp_v;
+    
+    extern size_t curr_sect;
+    sect_ring[curr_sect] = *v;
+    curr_sect = (curr_sect+1) & (MAX_SECTS-1);
+
+    BSPVertExt *vX = g_world.geo_bsp->vert_exts + i_bsp_v;
+    int32_t i_pre_v = vX->i_pre_vert;
+    if (i_pre_v == -1) {
+        epm_Log(LT_WARN, "Can't select a vertex formed by a BSP cut.");
+        // TODO: This ought to be handled silently, but for now I want to
+        // confirm that this condition does get triggered.
+        return;
+    }
+    
+    size_t num_brush_source = g_world.geo_prebsp->vert_exts[i_pre_v].num_brush_verts;
+    for (size_t i = 0; i < num_brush_source; i++) {
+        Brush *brush = g_world.geo_prebsp->vert_exts[i_pre_v].brush_verts[i].brush;
+        BrushSel_toggle(brush);
+    }
 }
 
 void select_one_face(Window *win, zgl_Pixel pixel) {
-    BSPFace *bspface = BSPFace_below(win, pixel, g_p_frustum);
-    if ( ! g_world.geo_bsp || ! bspface) return;
-    Face const *gen_face = g_world.geo_bsp->gen_faces + bspface->i_gen_face;
-    if (bspface) {
-        bool selected =
-            ((BrushQuadFace *)gen_face->brushface)->flags & FACEFLAG_SELECTED;
-        sel_clear(&sel_face);
-        clear_brush_selection(&brushsel);
+    BSPFaceExt *bspfaceX = BSPFace_below(win, pixel, g_p_frustum);
+    if ( ! g_world.geo_bsp || ! bspfaceX) return;
+    
+    if (bspfaceX) {
+        PreFaceExt *fX = g_world.geo_bsp->pre_face_exts + bspfaceX->i_pre_face;
+        BrushPolyExt *pX = fX->brush->poly_exts + fX->i_brush_poly;
+        
+        bool selected = pX->brushflags & FACEFLAG_SELECTED;
+        BrushPolySel_clear();
+        BrushSel_clear();
+
+        //        printf("%p\n", (void *)gen_face->brushpoly);
+        //        printf("(num_subfaces %zu)\n", gen_face->brushpoly->num_subfaces);
         if ( ! selected) {
-            sel_toggle_face(gen_face->brushface);
+            BrushPolySel_toggle(fX->brush, fX->i_brush_poly);
         }
     }
 }
 
 void select_face(Window *win, zgl_Pixel pixel) {
-    BSPFace *bspface = BSPFace_below(win, pixel, g_p_frustum);
-    if (bspface) {
-        uint32_t i_gen_face = bspface->i_gen_face;
-        sel_toggle_face(g_world.geo_bsp->gen_faces[i_gen_face].brushface);
+    BSPFaceExt *bspfaceX = BSPFace_below(win, pixel, g_p_frustum);
+    
+    if (bspfaceX) {
+        PreFaceExt *fX = g_world.geo_bsp->pre_face_exts + bspfaceX->i_pre_face;
+        BrushPolySel_toggle(fX->brush, fX->i_brush_poly);
     }
 }
 
 void select_brush(Window *win, zgl_Pixel pixel) {
-    BSPFace *bspface = BSPFace_below(win, pixel, g_p_frustum);
+    BSPFaceExt *bspface = BSPFace_below(win, pixel, g_p_frustum);
     if (bspface) {
-        toggle_selected_brush(&brushsel, g_world.geo_prebsp->progenitor_brush[bspface->i_gen_face]);
+        BrushSel_toggle(g_world.geo_prebsp->face_exts[bspface->i_pre_face].brush);
+    }
+}
+
+void select_vert(Window *win, zgl_Pixel pixel) {
+    int32_t i_bsp_v = BSPVertex_below(win, pixel);
+    if (i_bsp_v == -1) return;
+    
+    BSPVertExt *bsp_vX = g_world.geo_bsp->vert_exts + i_bsp_v;
+    PreVertExt *pre_vX = g_world.geo_bsp->pre_vert_exts + bsp_vX->i_pre_vert;
+
+    for (size_t i = 0; i < pre_vX->num_brush_verts; i++) {
+        Brush *brush = pre_vX->brush_verts[0].brush;
+        BrushSel_add(brush);
+        BrushVertSel_add(brush, pre_vX->brush_verts[0].i_v);
     }
 }
 
@@ -1505,6 +1604,50 @@ zgl_Color Normal_to_Color(WorldVec normal) {
 }
 
 
+void epm_SetBSPVisualizerMode(bool state) {
+    static uint8_t g_saved_rasterflags;
+    
+    g_settings.BSP_visualizer = state;
+    
+    if (state == true) {
+        g_saved_rasterflags = g_rasterflags;
+        g_rasterflags &= ~RASTERFLAG_TEXEL;
+        g_rasterflags &= ~RASTERFLAG_VBRI;
+        g_rasterflags &= ~RASTERFLAG_FBRI;
+        fn_set_fclr = set_fclr_bsp_depth;
+    }
+    else {
+        g_rasterflags = g_saved_rasterflags;
+    }
+}
+
+
+void epm_ToggleBSPVisualizerMode(void) {
+    epm_SetBSPVisualizerMode( ! g_settings.BSP_visualizer);
+}
+
+
+void epm_SetNormalVisualizerMode(bool state) {
+    static uint8_t g_saved_rasterflags;
+    
+    g_settings.normal_visualizer = state;
+    
+    if (state == true) {
+        g_saved_rasterflags = g_rasterflags;
+        g_rasterflags &= ~RASTERFLAG_TEXEL;
+        g_rasterflags &= ~RASTERFLAG_VBRI;
+        g_rasterflags &= ~RASTERFLAG_FBRI;
+        fn_set_fclr = set_fclr_normal;
+    }
+    else {
+        g_rasterflags = g_saved_rasterflags;
+    }
+}
+
+
+void epm_ToggleNormalVisualizerMode(void) {
+    epm_SetNormalVisualizerMode( ! g_settings.normal_visualizer);
+}
 
 
 

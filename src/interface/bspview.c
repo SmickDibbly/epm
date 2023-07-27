@@ -36,6 +36,12 @@ static ColoredEdge edges[4096];
 static zgl_Pixel hovered_grid_point = {-1, -1};
 
 void update_BSPView(void) {
+    
+    if ( ! (g_world.worldflags & WF_LOADED_BSPGEO)) {
+        epm_Log(LT_WARN, "Cannot update BSPView when no BSP exists.");
+        return;
+    }
+    
     construct_diagram();
 }
 
@@ -51,26 +57,16 @@ static size_t i_curr_v = 0;
 static int const mul = 8;
 
 static void draw_BSPView(Window *win) {
-    /*
-    uint32_t xmin = win->rect.x;
-    uint32_t xmax = win->rect.x + win->rect.w - 1;
-    uint32_t ymin = win->rect.y;
-    uint32_t ymax = win->rect.y + win->rect.h - 1;
-    
-    for (uint32_t y = ymin; y < ymax; y += mul) {
-        for (uint32_t x = xmin; x < xmax; x += mul) {
-            g_scr_pixels[x + y*g_scr_w] = 0xFFFF00;
-        }
+    if ( ! (g_world.worldflags & WF_LOADED_BSPGEO)) {    
+        return;
     }
-    */
-
+    
     zgl_Pixel pixel2;
     zgl_PixelRect rect;
-
     
-    if (hovered_grid_point.x >= 0 && hovered_grid_point.y >= 0)
+    if (hovered_grid_point.x >= 0 && hovered_grid_point.y >= 0) {
         zgl_GrayRect(g_scr, hovered_grid_point.x, hovered_grid_point.y, mul, mul, 0x44);
-
+    }    
     
     pixel2.x = mul*vertices[i_curr_v].x + win->rect.x;
     pixel2.y = mul*vertices[i_curr_v].y + win->rect.y;

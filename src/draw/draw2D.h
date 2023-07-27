@@ -32,5 +32,6 @@ extern void zoom_level_up(Plane tsf);
 extern void zoom_level_down(Plane tsf);
 extern void draw_View2D(Window *win);
 extern void scroll(Window *win, int dx, int dy, Plane tsf);
+extern void compute_scroll(Window *win, int dx, int dy, Plane tsf, Fix32 *out_wdx, Fix32 *out_wdy);
 
 #endif /* DRAW2D_H */

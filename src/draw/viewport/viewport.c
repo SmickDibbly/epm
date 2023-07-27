@@ -369,8 +369,9 @@ WindowNode *epm_PrevActiveVP(void) {
     ViewportLayout const *p_VPL = &viewport_layouts[i_curr_VPL];
     int i_cycle = p_VPL->VP_vec[active_viewport->i_VP];
     if (i_cycle == -1) return NULL;
-            
-    active_viewport = &viewports[p_VPL->VP_cycle[(i_cycle + 1) % p_VPL->VP_cycle_len]];
+    
+    size_t len = p_VPL->VP_cycle_len;
+    active_viewport = &viewports[p_VPL->VP_cycle[(i_cycle + len - 1) % len]];
     epm_SetInputFocus(&active_viewport->VPI_node);
     
     return &active_viewport->VPI_node;
@@ -382,9 +383,8 @@ WindowNode *epm_NextActiveVP(void) {
     ViewportLayout const *p_VPL = &viewport_layouts[i_curr_VPL];
     int i_cycle = p_VPL->VP_vec[active_viewport->i_VP];
     if (i_cycle == -1) return NULL;
-    
-    size_t len = p_VPL->VP_cycle_len;
-    active_viewport = &viewports[p_VPL->VP_cycle[(i_cycle + len - 1) % len]];
+            
+    active_viewport = &viewports[p_VPL->VP_cycle[(i_cycle + 1) % p_VPL->VP_cycle_len]];
     epm_SetInputFocus(&active_viewport->VPI_node);
     
     return &active_viewport->VPI_node;
@@ -542,7 +542,7 @@ static void draw_view_container(Window *win) {
 
     zgl_FillRect(g_scr, view_container_window.rect.x, view_container_window.rect.y, 1, view_container_window.rect.h,
                  color_view_container_border);
-    
+
     active_viewport = NULL;
     extern WindowNode *input_focus;
     for (VPCode i_VP = 0; i_VP < NUM_VP; i_VP++) {

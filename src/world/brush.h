@@ -3,37 +3,61 @@
 
 #include "src/misc/epm_includes.h"
 #include "src/world/geometry.h"
+#include "src/world/elements.h"
 #include "zigil/zigil.h"
 #include "src/draw/draw.h"
-#include "src/world/mesh.h"
 
 /* -------------------------------------------------------------------------- */
 // Brush faces
 
+// __________________       ______________________       _______________
+// |  BrushVertExt  |       |  PreVertExt        |       |  BSPVertExt |
+// | .i_pre_vert----------->| .i_bsp_vert--------------->|             |
+// |                |<--------.brush_verts[].i_v |<--------.i_pre_vert |
+// |________________|       |____________________|       |_____________|
+
+// __________________       __________________       _______________
+// |  BrushEdgeExt  |       |  PreEdgeExt    |       |  BSPEdgeExt |
+// |               -------->|               -------->|             |
+// |                |<--------               |<--------            |
+// |________________|       |________________|       |_____________|
+
+// __________________       __________________       _______________
+// |  BrushPolyExt  |       |  PreFaceExt    |       |  BSPFaceExt |
+// | .i_pre_faces[]-------->| .i_bsp_faces[]-------->|             |
+// |                |<--------.i_brush_poly  |<--------.i_pre_face |
+// |________________|       |________________|       |_____________|
+
+
+
+typedef struct BrushPolyExt BrushPolyExt;
+typedef struct BrushEdgeExt BrushEdgeExt;
+typedef struct BrushVertExt BrushVertExt;
+
+#define VERTFLAG_SELECTED 0x01
+struct BrushVertExt {
+    uint32_t i_pre_vert;
+    uint8_t brushflags;
+};
+
+struct BrushEdgeExt {
+    uint32_t i_pre_edge;
+    uint8_t brushflags;
+};
+
 #define FACEFLAG_SELECTED 0x01
-typedef struct BrushQuadFace {
-    uint32_t flags;
-    
-    QuadFace quad;
-    
-    Face *subface0;
-    Face *subface1;
-} BrushQuadFace;
-
-typedef struct BrushPoly {
-    uint32_t brushflags;
-
-    Poly poly;
-
-    Poly3 *subpolys; // .poly.num_i_v - 1 subpolys
-} BrushPoly;
+struct BrushPolyExt {
+    uint32_t num_pre_faces;
+    uint32_t i_pre_faces[8];
+    uint8_t brushflags;
+};
 
 typedef struct BrushPoly4 {
     uint32_t brushflags;
 
     Poly4 poly4;
 
-    Poly3 *subpoly0, *subpoly1;
+    Face *subface0, *subface1;
 } BrushPoly4;
 
 typedef struct BrushPoly3 {
@@ -41,48 +65,16 @@ typedef struct BrushPoly3 {
 
     Poly3 poly3;
 
-    Poly3 *subpoly0;
+    Face *subface;
 } BrushPoly3;
-
-#define UV_SCALE_TO_FIT 0x01
-typedef struct BrushQuadFace2 {
-    size_t i_v0, i_v1, i_v2, i_v3;
-
-    uint8_t flags;
-    WorldVec normal;
-    Fix32 brightness;
-    size_t i_tex;
-    
-    uint8_t uv_flags; // def 0
-    Ang18 uv_ang; // def 0
-    Fix32Vec_2D uv_scale; // def (1.0, 1.0)
-    Fix32Vec_2D uv_offset; // def (0,0)
-} BrushQuadFace2;
-// When processing a BrushQuadFace into two triangle Faces, if uv_flags is 0
-// then the UV mapping data above will be applied to the default UV mapping as
-// follows:
-// 1) Rotate by uv_ang about the origin (u,v)=(0,0)
-// 2) Scale by uv_scale.x in the u dimension
-// 3) Scale by uv_scale.y in the v dimension
-// 4) Translate by uv_offset
-//
-// If uv_flags & UV_SCALE_TO_FIT is set, 
-
-// TODO: "composite face"
 
 
 /* -------------------------------------------------------------------------- */
 // Generic Brush Container
 
-typedef enum BrushType {
-    BT_CUBOID,
-
-    NUM_BT
-} BrushType;
-
 #define BRUSHFLAG_SELECTED 0x01
 typedef struct Brush {
-    uint32_t flags;
+    uint8_t flags;
 
     char *name;
     
@@ -91,75 +83,61 @@ typedef struct Brush {
     WorldVec POR;
     zgl_Color wirecolor;
 
-    size_t num_vertices;
-    WorldVec *vertices;
-
+    size_t num_verts;
+    WorldVec *verts;
+    BrushVertExt *vert_exts;
+    
     size_t num_edges;
     Edge *edges;
+    //    BrushEdgeExt *edge_exts;
     
-    size_t num_quads;
-    BrushQuadFace *quads;
-    
-    BrushType type;
-    void *brush;
+    size_t num_polys;
+    Poly *polys;
+    BrushPolyExt *poly_exts;
 } Brush;
-
-void init_Brush(Brush *nonNULL_brush, WorldVec POR, int CSG);
-
-
 
 
 /* -------------------------------------------------------------------------- */
 // Specific Brush Geometry
 
-typedef struct GenericBrush {
-    Brush *brush;
+#define NUM_VERTICES_CUBOID 8
+#define NUM_EDGES_CUBOID    12
+#define NUM_POLYS_CUBOID    6
+#define NUM_QUADS_CUBOID    6
+#define NUM_TRIS_CUBOID     12
+
+extern Brush *create_cuboid_brush(WorldVec v, WorldVec dv);
+extern void destroy_brush(Brush *brush);
+
+/* -------------------------------------------------------------------------- */
+// The Brush Frame
+
+#define BRUSHFLAG_SELECTED 0x01
+typedef struct FrameBrush {
+    uint8_t flags;
+
+    char *name;
     
-    size_t num_vertices;
-    WorldVec *vertices;
+    WorldVec POR;
+    //    zgl_Color wirecolor;
+
+    size_t num_verts;
+    WorldVec *verts;
+    WorldVec *prebsp_vertex;
 
     size_t num_edges;
     Edge *edges;
     
     size_t num_polys;
-    BrushPoly *polys;
-} GenericBrush;
+    Poly *polys;
+    BrushPolyExt *poly_exts;
+} FrameBrush;
 
+extern Brush *set_frame_cuboid(WorldVec v, WorldVec dv);
+extern Brush *set_frame_cylinder(WorldVec v, WorldUnit radius, size_t num_sides);
+extern Brush *set_frame_pyramid(WorldVec v, WorldUnit base, WorldUnit height);
 
-#define NUM_VERTICES_CUBOID 8
-#define NUM_EDGES_CUBOID    18
-#define NUM_QUADS_CUBOID    6
-#define NUM_FACES_CUBOID    12
-typedef struct CuboidBrush {
-    Brush *container;
-    
-    size_t num_vertices;
-    WorldVec vertices[NUM_VERTICES_CUBOID];
-
-    size_t num_edges;
-    Edge edges[NUM_EDGES_CUBOID];
-    
-    size_t num_quads;
-    BrushQuadFace quads[NUM_QUADS_CUBOID];
-} CuboidBrush;
-
-#define Cuboid_of(BRUSH) ((CuboidBrush *)((BRUSH)->brush))
-
-extern void init_CuboidBrush(CuboidBrush *nonNULL_cuboid, UFix32 dx, UFix32 dy, UFix32 dz);
-extern Brush *create_CuboidBrush(WorldVec origin, int CSG, UFix32 dx, UFix32 dy, UFix32 dz);
-extern Brush *new_CuboidBrush(void);
-extern void destroy_CuboidBrush(Brush *brush);
-
-/* -------------------------------------------------------------------------- */
-// The Brush Frame
-
-extern Brush *frame;
-
-extern void set_frame(BrushType type, /*parameters*/ WorldUnit dx, WorldUnit dy, WorldUnit dz);
-
-extern GenericBrush *set_cuboid_frame(WorldVec v, WorldVec dv);
-extern GenericBrush *set_cylinder_frame(WorldVec v, WorldUnit radius, size_t num_sides);
-extern GenericBrush *set_pyramid_frame(WorldVec v, WorldUnit base, WorldUnit height);
+extern Brush *g_frame;
 
 /* -------------------------------------------------------------------------- */
 // The linked list of all brushes.
@@ -179,6 +157,8 @@ typedef struct BrushGeometry { //geometry as given by a level designer.
 extern void unlink_brush(Brush *brush);
 extern void link_brush(Brush *brush);
 extern epm_Result reset_BrushGeometry(void);
-extern epm_Result epm_TriangulateAndMergeBrushGeometry(void);
+extern epm_Result triangulate_world(void);
+
+extern void print_Brush(Brush *brush);
 
 #endif /* BRUSH_H */

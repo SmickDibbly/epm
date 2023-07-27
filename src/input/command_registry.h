@@ -35,7 +35,7 @@ extern epm_Command const CMD_worldfromobj;
 
 extern epm_Command const CMD_outputgeo;
 
-//extern epm_Command const CMD_writeworld;
+extern epm_Command const CMD_writeworld;
 extern epm_Command const CMD_readworld;
 
 /* -------------------------------------------------------------------------- */
@@ -49,7 +49,7 @@ extern epm_Command const CMD_loadtex;
 /* -------------------------------------------------------------------------- */
 // Geometry-related.
 
-extern epm_Command const CMD_set_frame;
+extern epm_Command const CMD_set_frame_cuboid;
 extern epm_Command const CMD_set_frame_point;
 extern epm_Command const CMD_rebuild;
 extern epm_Command const CMD_snap;

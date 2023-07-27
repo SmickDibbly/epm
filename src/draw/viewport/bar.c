@@ -51,8 +51,15 @@ static zgl_Pixel const icon_3Dview_on     = {1*ICON_W, 3*ICON_W};
 static zgl_Pixel const icon_light_off     = {0*ICON_W, 4*ICON_W};
 static zgl_Pixel const icon_light_on      = {1*ICON_W, 4*ICON_W};
 
+static zgl_Pixel const icon_texview       = {0*ICON_W, 8*ICON_W};
+static zgl_Pixel const icon_fileselect    = {0*ICON_W, 0*ICON_W};
+static zgl_Pixel const icon_bspview       = {1*ICON_W, 7*ICON_W};
+static zgl_Pixel const icon_monitor       = {1*ICON_W, 8*ICON_W};
 static zgl_Pixel const icon_logview       = {0*ICON_W, 5*ICON_W};
 static zgl_Pixel const icon_console       = {1*ICON_W, 5*ICON_W};
+
+static zgl_Pixel const icon_proj_ortho    = {1*ICON_W, 9*ICON_W};
+static zgl_Pixel const icon_proj_persp    = {0*ICON_W, 9*ICON_W};
 
 static zgl_Pixel const icon_wirenopoly    = {0*ICON_W, 6*ICON_W};
 static zgl_Pixel const icon_wireoverlay   = {1*ICON_W, 6*ICON_W};
@@ -96,10 +103,10 @@ static void updateButton_wire_mode(ViewbarButton *self, Viewport *vp) {
 static void updateButton_proj_mode(ViewbarButton *self, Viewport *vp) {
     switch (g_settings.proj_mode) {
     case PROJ_ORTHOGRAPHIC:
-        set_button_icon(self, icon_wireoff);
+        set_button_icon(self, icon_proj_ortho);
         break;
     case PROJ_PERSPECTIVE:
-        set_button_icon(self, icon_wirenopoly);
+        set_button_icon(self, icon_proj_persp);
         break;
     }
 }
@@ -178,11 +185,11 @@ static ViewbarButton const btn_3D = {
 
 
 static ViewbarSpec barspec_Monitor = {
-    .icon = icon_logview,
+    .icon = icon_monitor,
     .num_subbtns = 0,
-    //    .subbtns = {},
+    .subbtns = {{0}},
     .num_relbtns = 0,
-    //    .relbtns = {},
+    .relbtns = {{0}},
 };
 static ViewbarSpec barspec_World3D = {
     .icon = icon_3Dview_on,
@@ -220,7 +227,7 @@ static ViewbarSpec barspec_Log = {
     .relbtns = {{0}},
 };
 static ViewbarSpec barspec_FileSelect = {
-    .icon = {0,0},
+    .icon = icon_fileselect,
     .num_subbtns = 0,
     .subbtns = {{0}},
     .num_relbtns = 0,
@@ -234,14 +241,14 @@ static ViewbarSpec barspec_Console = {
     .relbtns = {{0}},
 };
 static ViewbarSpec barspec_TexView = {
-    .icon = {0,0},
+    .icon = icon_texview,
     .num_subbtns = 0,
     .subbtns = {{0}},
     .num_relbtns = 0,
     .relbtns = {{0}},
 };
 static ViewbarSpec barspec_BSPView = {
-    .icon = {0,0},
+    .icon = icon_bspview,
     .num_subbtns = 0,
     .subbtns = {{0}},
     .num_relbtns = 0,

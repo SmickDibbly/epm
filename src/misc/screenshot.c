@@ -109,7 +109,7 @@ epm_Result epm_ScreenshotViewport(char const *_filename, Viewport *vp) {
     }
 
     strcat(filename, ".bmp");
-    
+
     zgl_WriteBMP(filename, crop);
 
     zgl_DestroyPixelArray(crop);

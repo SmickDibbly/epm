@@ -54,10 +54,52 @@ static void file_overview(DIBJFileOverview *data, FILE *in_fp);
 static size_t num_texnames = 0;
 static char texnames[64][MAX_TEXTURE_NAME_LEN] = {'\0'};
 
+void epm_ComputeFaceNormal(WorldVec vertices[], Face *f) {
+    if (f->i_v[0] == f->i_v[1] ||
+        f->i_v[1] == f->i_v[2] ||
+        f->i_v[2] == f->i_v[0]) {
+        epm_Log(LT_WARN,
+                "Degenerate polygon: (%s, %s, %s) -> (%s, %s, %s) -> (%s, %s, %s).",
+                fmt_fix_x(x_of(vertices[f->i_v[0]]), 16),
+                fmt_fix_x(y_of(vertices[f->i_v[0]]), 16),
+                fmt_fix_x(z_of(vertices[f->i_v[0]]), 16),
+                
+                fmt_fix_x(x_of(vertices[f->i_v[1]]), 16),
+                fmt_fix_x(y_of(vertices[f->i_v[1]]), 16),
+                fmt_fix_x(z_of(vertices[f->i_v[1]]), 16),
+
+                fmt_fix_x(x_of(vertices[f->i_v[2]]), 16),
+                fmt_fix_x(y_of(vertices[f->i_v[2]]), 16),
+                fmt_fix_x(z_of(vertices[f->i_v[2]]), 16));
+
+        f->flags |= FC_DEGEN;
+        return;
+    }
+
+    bool res = plane_normal(&f->normal,
+                            &vertices[f->i_v[0]],
+                            &vertices[f->i_v[1]],
+                            &vertices[f->i_v[2]]);
+
+    if (!res) {
+        epm_Log(LT_WARN, "WARNING: Encountered degenerate polygon during plane normal computation: (%s, %s, %s).",
+                fmt_fix_x(x_of(vertices[f->i_v[0]]), 16),
+                fmt_fix_x(y_of(vertices[f->i_v[1]]), 16),
+                fmt_fix_x(z_of(vertices[f->i_v[2]]), 16));
+        f->flags |= FC_DEGEN;
+    }
+}
+
+// IDEA: collect the various "batch computations of geometry attributes" into
+// their own place???
+
+// TODO: Document the various "flags" field that appear in structs across the
+// codebase.
+
 void epm_ComputeFaceNormals(WorldVec vertices[], size_t num_faces, Face faces[]) {
     for (size_t i_face = 0; i_face < num_faces; i_face++) {
-        Face *face = faces+i_face;
-        face->flags = 0;
+        Face *face = faces + i_face;
+        face->flags = 0; // TODO: why?
         
         if (face->i_v[0] == face->i_v[1] ||
             face->i_v[1] == face->i_v[2] ||
@@ -126,6 +168,89 @@ void epm_ComputeFaceBrightnesses(size_t num_faces, Face faces[]) {
     }
 }
 
+size_t epm_CountEdgesFromPolys(size_t num_polys, Poly *polys) {
+    size_t num_edges = 0;
+    size_t min_i_v, max_i_v;
+    bool duplicate;
+
+    for (size_t i_poly = 0; i_poly < num_polys; i_poly++) {
+        Poly *poly = polys + i_poly;
+        for (size_t i_poly_v0 = 0; i_poly_v0 < poly->num_v; i_poly_v0++) {
+            size_t i_poly_v1 = i_poly_v0 == poly->num_v-1 ? 0 : i_poly_v0 + 1;
+
+            size_t i_v0 = poly->vind[i_poly_v0];
+            size_t i_v1 = poly->vind[i_poly_v1];
+            min_i_v = MIN(i_v0, i_v1);
+            max_i_v = MAX(i_v0, i_v1);
+
+            duplicate = false;
+            for (size_t i_edge = 0; i_edge < num_edges; i_edge++) {
+                if ((g_edges[i_edge].i_v0 == min_i_v &&
+                     g_edges[i_edge].i_v1 == max_i_v)) {
+                    duplicate = true;
+                    break; // from i_edge loop
+                }
+            }
+            if ( ! duplicate) { // add to list
+                g_edges[num_edges].i_v0 = min_i_v;
+                g_edges[num_edges].i_v1 = max_i_v;
+                num_edges++;
+            }
+        }
+    }
+
+    return num_edges;
+}
+
+epm_Result epm_ComputeEdgesFromPolys
+(size_t num_polys, Poly *polys,
+ size_t *out_num_edges, Edge *(out_edges[])) {
+    size_t num_edges = epm_CountEdgesFromPolys(num_polys, polys);
+    Edge *edges = zgl_Malloc(num_edges*sizeof(*edges));
+    
+    size_t max_edges = num_edges;
+    num_edges = 0;
+    
+    size_t min_i_v, max_i_v;
+    bool duplicate;
+    
+    for (size_t i_poly = 0; i_poly < num_polys; i_poly++) {
+        Poly *poly = polys + i_poly;
+        for (size_t i_poly_v0 = 0; i_poly_v0 < poly->num_v; i_poly_v0++) {
+            size_t i_poly_v1 = i_poly_v0 == poly->num_v-1 ? 0 : i_poly_v0 + 1;
+
+            size_t i_v0 = poly->vind[i_poly_v0];
+            size_t i_v1 = poly->vind[i_poly_v1];
+            min_i_v = MIN(i_v0, i_v1);
+            max_i_v = MAX(i_v0, i_v1);
+
+            duplicate = false;
+
+            for (size_t i_edge = 0; i_edge < num_edges; i_edge++) {
+                if ((edges[i_edge].i_v0 == min_i_v &&
+                     edges[i_edge].i_v1 == max_i_v)) {
+                    duplicate = true;
+                    break;
+                }
+            }
+            if ( ! duplicate) {
+                if (num_edges == max_edges)
+                    return EPM_ERROR;
+                edges[num_edges].i_v0 = min_i_v;
+                edges[num_edges].i_v1 = max_i_v;
+                num_edges++;
+            }
+        }
+    }
+
+    dibassert(num_edges == max_edges);
+    
+    *out_num_edges = num_edges;
+    *out_edges = edges;
+    
+    return EPM_SUCCESS;
+}
+
 size_t epm_CountEdgesFromFaces(size_t num_faces, Face *faces) {    
     size_t num_edges = 0;
     size_t i_v0, i_v1, i_v2, min_i_v, max_i_v;
@@ -189,7 +314,6 @@ size_t epm_CountEdgesFromFaces(size_t num_faces, Face *faces) {
 
     return num_edges;
 }
-
 
 epm_Result epm_ComputeEdgesFromFaces
 (size_t num_faces, Face *faces,
@@ -266,10 +390,12 @@ epm_Result epm_ComputeEdgesFromFaces
     }
 
     dibassert(num_edges == max_edges);
+
+    printf("Found %zu edges from %zu faces.\n", num_edges, num_faces);
     
     *out_num_edges = num_edges;
     *out_edges = edges;
-    
+
     return EPM_SUCCESS;
 }
 
@@ -287,8 +413,8 @@ void write_world_geometry(char const *filename) {
 
     fprintf(out_fp, "# EWD0\n\n");
 
-    size_t num_V = g_world.geo_bsp->num_vertices;
-    Fix32Vec const *V = g_world.geo_bsp->vertices;
+    size_t num_V = g_world.geo_bsp->num_verts;
+    Fix32Vec const *V = g_world.geo_bsp->verts;
     for (size_t i_V = 0; i_V < num_V; i_V++) {
         fprintf(out_fp, "v  %s  %s  %s\n",
                 fmt_fix_x(x_of(V[i_V]), 16),
@@ -643,8 +769,8 @@ void write_Mesh_dibj_1(Mesh const *mesh, char const *filename) {
 
     fprintf(out_fp, "# DIBJ\n\n");
 
-    size_t num_V = mesh->num_vertices;
-    Fix32Vec const *V = mesh->vertices;
+    size_t num_V = mesh->num_verts;
+    Fix32Vec const *V = mesh->verts;
     for (size_t i_V = 0; i_V < num_V; i_V++) {
         fprintf(out_fp, "v  %s  %s  %s\n",
                 fmt_fix_x(x_of(V[i_V]), 16),
@@ -722,7 +848,7 @@ void write_Mesh_dibj_1(Mesh const *mesh, char const *filename) {
 
 
 static void postread(Mesh *mesh) {
-    epm_ComputeFaceNormals(mesh->vertices, mesh->num_faces, mesh->faces);
+    epm_ComputeFaceNormals(mesh->verts, mesh->num_faces, mesh->faces);
     epm_ComputeFaceBrightnesses(mesh->num_faces, mesh->faces);
 
     mesh->num_edges = epm_CountEdgesFromFaces(mesh->num_faces, mesh->faces);
@@ -958,7 +1084,7 @@ static void read_line(FILE *in_fp, char *str) {
 }
 
 epm_Result load_Mesh_dibj_1(Mesh *mesh, char *filename) {
-    mesh->num_vertices = 0;
+    mesh->num_verts = 0;
     mesh->num_edges = 0;
     mesh->num_faces = 0;
     
@@ -1008,8 +1134,8 @@ epm_Result load_Mesh_dibj_1(Mesh *mesh, char *filename) {
     char line[256] = {'\0'};    
 
     if (data.num_v > 0) {
-        mesh->num_vertices = data.num_v;
-        mesh->vertices = zgl_Malloc(mesh->num_vertices * sizeof(*(mesh->vertices)));
+        mesh->num_verts = data.num_v;
+        mesh->verts = zgl_Malloc(mesh->num_verts * sizeof(*mesh->verts));
         
         fseek(in_fp, data.ofs_v, SEEK_SET);
 
@@ -1033,13 +1159,13 @@ epm_Result load_Mesh_dibj_1(Mesh *mesh, char *filename) {
             while (line[i_ch] == ' ')  i_ch++;
             i_ch += read_fix_x(line+i_ch, &z_of(vertex));
 
-            mesh->vertices[i_vertex] = vertex;
+            mesh->verts[i_vertex] = vertex;
             i_vertex++;
             
             if (feof(in_fp)) break;
         }
         
-        dibassert(mesh->num_vertices == i_vertex);
+        dibassert(mesh->num_verts == i_vertex);
     }
 
 
@@ -1235,7 +1361,7 @@ epm_Result load_Mesh_dibj_1(Mesh *mesh, char *filename) {
 void load_Mesh_dibj_0(Mesh *mesh, char *filename) {
     int i_vertex = 0;
     int i_face = 0;
-    mesh->num_vertices = 0;
+    mesh->num_verts = 0;
     mesh->num_edges = 0;
     mesh->num_faces = 0;
     
@@ -1260,10 +1386,10 @@ void load_Mesh_dibj_0(Mesh *mesh, char *filename) {
         
         if (line[0] == 'v' && line[1] == ' ') {
             sscanf(line+2, " %lf %lf %lf", &x, &y, &z);
-            x_of(mesh->vertices[i_vertex]) = (Fix32)(x * FIX_P16_ONE);
-            y_of(mesh->vertices[i_vertex]) = (Fix32)(y * FIX_P16_ONE);
-            z_of(mesh->vertices[i_vertex]) = (Fix32)(z * FIX_P16_ONE);
-            mesh->num_vertices++;
+            x_of(mesh->verts[i_vertex]) = (Fix32)(x * FIX_P16_ONE);
+            y_of(mesh->verts[i_vertex]) = (Fix32)(y * FIX_P16_ONE);
+            z_of(mesh->verts[i_vertex]) = (Fix32)(z * FIX_P16_ONE);
+            mesh->num_verts++;
             i_vertex++;
         }
     }
@@ -1300,7 +1426,7 @@ void load_Mesh_dibj_0(Mesh *mesh, char *filename) {
 void load_Mesh_obj(Mesh *mesh, char *filename) {
     int i_vertex = 0;
     int i_face = 0;
-    mesh->num_vertices = 0;
+    mesh->num_verts = 0;
     mesh->num_edges = 0;
     mesh->num_faces = 0;
     
@@ -1330,15 +1456,15 @@ void load_Mesh_obj(Mesh *mesh, char *filename) {
             x_of(g_vertices[i_vertex]) = (Fix32)(x * FIX_P16_ONE);
             y_of(g_vertices[i_vertex]) = (Fix32)(z * FIX_P16_ONE);
             z_of(g_vertices[i_vertex]) = (Fix32)(y * FIX_P16_ONE);
-            mesh->num_vertices++;
+            mesh->num_verts++;
             i_vertex++;
         }
     }
 
  Next:
 
-    mesh->vertices = zgl_Malloc(mesh->num_vertices * sizeof(*(mesh->vertices)));
-    memcpy(mesh->vertices, g_vertices, mesh->num_vertices * sizeof(*(mesh->vertices)));
+    mesh->verts = zgl_Malloc(mesh->num_verts * sizeof(*(mesh->verts)));
+    memcpy(mesh->verts, g_vertices, mesh->num_verts * sizeof(*(mesh->verts)));
 
     fseek(in_fp, 0, SEEK_SET);
     
@@ -1380,7 +1506,7 @@ void destroy_mesh(void);
 void print_Mesh(Mesh *mesh) {
     printf("  Mesh  \n");
     printf("+------+\n");
-    printf("(v %zu)\n", mesh->num_vertices);
+    printf("(v %zu)\n", mesh->num_verts);
     printf("(e %zu)\n", mesh->num_edges);
     printf("(f %zu)\n", mesh->num_faces);
     printf("(min (%s, %s, %s))\n"
@@ -1392,11 +1518,11 @@ void print_Mesh(Mesh *mesh) {
            fmt_fix_x(ymax_of(mesh->AABB), 16),
            fmt_fix_x(zmax_of(mesh->AABB), 16));
     
-    for (size_t i_v = 0; i_v < mesh->num_vertices; i_v++) {
+    for (size_t i_v = 0; i_v < mesh->num_verts; i_v++) {
         printf("v  %s  %s  %s\n",
-               fmt_fix_x(x_of(mesh->vertices[i_v]), 16),
-               fmt_fix_x(y_of(mesh->vertices[i_v]), 16),
-               fmt_fix_x(z_of(mesh->vertices[i_v]), 16));
+               fmt_fix_x(x_of(mesh->verts[i_v]), 16),
+               fmt_fix_x(y_of(mesh->verts[i_v]), 16),
+               fmt_fix_x(z_of(mesh->verts[i_v]), 16));
     }
     putchar('\n');
 
@@ -1436,16 +1562,16 @@ void print_Mesh(Mesh *mesh) {
 
 void epm_ComputeAABB(Mesh *p_mesh) {
     Fix32 xmin, ymin, zmin, xmax, ymax, zmax;
-    dibassert(p_mesh->num_vertices > 0);
-    Fix32 pad = (1<<16);
+    dibassert(p_mesh->num_verts > 0);
+    Fix32 pad = (1<<16); // TODO: No hard-code.
     
-    WorldVec v = p_mesh->vertices[0];
+    WorldVec v = p_mesh->verts[0];
     xmin = xmax = x_of(v);
     ymin = ymax = y_of(v);
     zmin = zmax = z_of(v);
     
-    for (size_t i_v = 1; i_v < p_mesh->num_vertices; i_v++) {
-        v = p_mesh->vertices[i_v];
+    for (size_t i_v = 1; i_v < p_mesh->num_verts; i_v++) {
+        v = p_mesh->verts[i_v];
         if (x_of(v) < xmin) xmin = x_of(v);
         if (y_of(v) < ymin) ymin = y_of(v);
         if (z_of(v) < zmin) zmin = z_of(v);
@@ -1485,9 +1611,9 @@ WorldVec tjs[MAX_T_JUNCTIONS] = {0};
 
 static void FindTJunctions_EdgeWise(Mesh *mesh, UFix32 const EdgeThickness) {
     // test every vertex against every edge.
-    uint32_t num_vertices = (uint32_t)mesh->num_vertices;
-    WorldVec *Vs = mesh->vertices;
-    uint32_t num_edges = (uint32_t)mesh->num_edges;
+    uint32_t num_vertices = (uint32_t)mesh->num_verts;
+    WorldVec *Vs = mesh->verts;
+    //uint32_t num_edges = (uint32_t)mesh->num_edges;
     Edge *Es = mesh->edges;
     
     for (uint32_t i_e = 0; i_e < 10; i_e++) {
@@ -1523,7 +1649,7 @@ static void FindTJunctions_FaceWise(Mesh *mesh, Face *f0, Face *f1, UFix32 const
         uint32_t i_v0 = i_v0s[i_i_v0];
         uint32_t i_v0_next = i_v0s[i_i_v0 < 2 ? i_i_v0 + 1 : 0];
         
-        WorldVec *Vs = mesh->vertices;
+        WorldVec *Vs = mesh->verts;
         WorldPlane edgeplane;
         WorldPlane polyplane;
 
@@ -1610,7 +1736,7 @@ void FillTJunctions(Mesh *mesh, Face *f0, Face *f1, UFix32 const EdgeThickness) 
         uint32_t i_v0 = i_v0s[i_i_v0];
         uint32_t i_v0_next = i_v0s[i_i_v0 < 2 ? i_i_v0 + 1 : 0];
         
-        WorldVec *Vs = mesh->vertices;
+        WorldVec *Vs = mesh->verts;
         WorldPlane edgeplane;
         WorldPlane polyplane;
         

@@ -282,9 +282,9 @@ static void epm_PruneDegenerates(Mesh *p_mesh) {
 
     for (size_t i_f = 0; i_f < p_mesh->num_faces; i_f++) {
         Face *f = p_mesh->faces + i_f;
-        WorldVec v0 = p_mesh->vertices[f->i_v[0]];
-        WorldVec v1 = p_mesh->vertices[f->i_v[1]];
-        WorldVec v2 = p_mesh->vertices[f->i_v[2]];
+        WorldVec v0 = p_mesh->verts[f->i_v[0]];
+        WorldVec v1 = p_mesh->verts[f->i_v[1]];
+        WorldVec v2 = p_mesh->verts[f->i_v[2]];
         
         if (eq(v0, v1) || eq(v1, v2) || eq(v2, v0)) {
             degen_vec[i_f] = true;
@@ -311,8 +311,8 @@ static void epm_PruneDegenerates(Mesh *p_mesh) {
 }
 
 static void convert_to_mesh(Mesh *p_mesh) {
-    p_mesh->num_vertices = 0;
-    p_mesh->vertices = zgl_Malloc(1*sizeof(p_mesh->vertices));
+    p_mesh->num_verts = 0;
+    p_mesh->verts = zgl_Malloc(1*sizeof(p_mesh->verts));
     
     p_mesh->num_faces = 0;
     p_mesh->faces = zgl_Malloc(1*sizeof(p_mesh->faces));
@@ -320,19 +320,19 @@ static void convert_to_mesh(Mesh *p_mesh) {
     for (size_t i_tris = 0; i_tris < num_trises; i_tris++) {
         Triangles *tris = trises + i_tris;
 
-        size_t base_v = p_mesh->num_vertices;
+        size_t base_v = p_mesh->num_verts;
         size_t base_f = p_mesh->num_faces;
         
-        p_mesh->num_vertices += tris->num_vertices;
-        p_mesh->vertices = zgl_Realloc(p_mesh->vertices, p_mesh->num_vertices*sizeof(*p_mesh->vertices));
+        p_mesh->num_verts += tris->num_vertices;
+        p_mesh->verts = zgl_Realloc(p_mesh->verts, p_mesh->num_verts*sizeof(*p_mesh->verts));
 
         p_mesh->num_faces += tris->num_tris;
         p_mesh->faces = zgl_Realloc(p_mesh->faces, p_mesh->num_faces*sizeof(*p_mesh->faces));
    
         for (size_t i_v = 0; i_v < tris->num_vertices; i_v++) {
-            x_of(p_mesh->vertices[base_v + i_v]) =  64*(Fix32)(tris->vertices[i_v].x * FIX_P16_ONE);
-            y_of(p_mesh->vertices[base_v + i_v]) = -64*(Fix32)(tris->vertices[i_v].z * FIX_P16_ONE);
-            z_of(p_mesh->vertices[base_v + i_v]) =  64*(Fix32)(tris->vertices[i_v].y * FIX_P16_ONE);
+            x_of(p_mesh->verts[base_v + i_v]) =  64*(Fix32)(tris->vertices[i_v].x * FIX_P16_ONE);
+            y_of(p_mesh->verts[base_v + i_v]) = -64*(Fix32)(tris->vertices[i_v].z * FIX_P16_ONE);
+            z_of(p_mesh->verts[base_v + i_v]) =  64*(Fix32)(tris->vertices[i_v].y * FIX_P16_ONE);
         }
 
         for (size_t i_f = 0; i_f < tris->num_tris; i_f++) {
@@ -364,7 +364,7 @@ static void convert_to_mesh(Mesh *p_mesh) {
             }
         
             f.flags = 0;
-            f.brushface = NULL;
+            //            f.brushpoly = NULL;
         
             p_mesh->faces[base_f + i_f] = f;
         }
@@ -373,7 +373,7 @@ static void convert_to_mesh(Mesh *p_mesh) {
     
 
     epm_PruneDegenerates(p_mesh);
-    epm_ComputeFaceNormals(p_mesh->vertices, p_mesh->num_faces, p_mesh->faces);
+    epm_ComputeFaceNormals(p_mesh->verts, p_mesh->num_faces, p_mesh->faces);
     epm_ComputeFaceBrightnesses(p_mesh->num_faces, p_mesh->faces);
 
     epm_Result res =

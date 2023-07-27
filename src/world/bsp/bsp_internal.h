@@ -15,7 +15,6 @@ typedef struct Maker_BSPVertex Maker_BSPVertex;
 typedef struct Maker_BSPEdge   Maker_BSPEdge;
 typedef struct Maker_BSPFace   Maker_BSPFace;
 
-
 struct Maker_BSPNode {
     Maker_BSPNode *parent;
     Maker_BSPNode *front;
@@ -42,7 +41,7 @@ struct Maker_BSPFace {
                                  // regular BSPFace because the list of coplanar
                                  // faces will be stored contiguously in memory.
     
-    uint32_t i_gen_face;
+    uint32_t i_pre_face;
     
     size_t i_v0; // tree->vertices[]
     size_t i_v1; // tree->vertices[]
@@ -65,6 +64,8 @@ struct Maker_BSPEdge {
 struct Maker_BSPVertex {
     WorldVec vertex;
 
+    int32_t i_pre_vert;
+
     uint8_t flags;
 };
 
@@ -75,8 +76,8 @@ struct Maker_BSPTree {
     size_t num_nodes;
     Maker_BSPNode *root;
     
-    size_t num_vertices;
-    Maker_BSPVertex * const vertices;
+    size_t num_verts;
+    Maker_BSPVertex * const verts;
 
     size_t num_msh_edges;
     Maker_BSPEdge * const msh_edges;
@@ -289,7 +290,7 @@ extern void print_Maker_BSPVertices(size_t num, Maker_BSPVertex const *arr);
 extern void print_Maker_BSPEdges(size_t num, Maker_BSPEdge const *arr);
 extern void print_Maker_BSPFaces(size_t num, Maker_BSPFace const *arr);
 extern void print_BSPTree_diagram(BSPNode const *node, uint32_t level);
-extern void print_BSPTree(BSPTree const *tree);
+extern void print_BSPTree_summary(BSPTree const *tree);
 extern void print_BSPFaces(size_t num, BSPFace const *bsp_faces, Face const *faces);
 extern void print_BSPCutData(BSPCutData const *data);
 #else
@@ -302,7 +303,7 @@ extern void print_BSPCutData(BSPCutData const *data);
 #  define print_Maker_BSPEdges(num, arr) (void)0
 #  define print_Maker_BSPFaces(num, arr) (void)0
 #  define print_BSPTree_diagram(node, level) (void)0
-#  define print_BSPTree(tree) (void)0
+#  define print_BSPTree_summary(tree) (void)0
 #  define print_BSPFaces(num, bspfaces, faces) (void)0
 #  define print_BSPCutData(data) (void)0
 #endif
@@ -313,19 +314,7 @@ extern void print_BSPCutData(BSPCutData const *data);
 /* -------------------------------------------------------------------------- */
 // Global data
 
-typedef struct ProgenitorGeometry {
-    size_t num_vertices;
-    WorldVec const *vertices;
-    uint8_t const *vbris;
-    
-    size_t num_edges;
-    Edge const *edges;
-
-    size_t num_faces;
-    Face const *faces;
-} ProgenitorGeometry;
-
-extern ProgenitorGeometry g_gen;
+extern PreGeometry g_gen;
 extern Maker_BSPTree g_maker_tree;
 extern BSPTree *g_p_final_tree;
 

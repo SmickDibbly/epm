@@ -7,6 +7,8 @@
 
 // Temporary: load a world upon init.
 #include "src/world/world.h"
+#include "src/draw/viewport/viewport_internal.h"
+#include "src/input/input.h"
 
 #undef LOG_LABEL
 #define LOG_LABEL "INIT"
@@ -89,6 +91,10 @@ epm_Result epm_Init(int argc, char *argv[]) {
     
     set_active_log_group(LG_GENERAL);
 
+    // FIXME: This post-initilization depends on the which default layout I
+    // chose.
+    epm_SetInputFocus(&viewports[VP_R].VPI_node);
+    epm_SetActiveVP(VP_R);
     //print_all_HashTable(); // temporary
     
     return EPM_SUCCESS;

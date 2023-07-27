@@ -15,6 +15,7 @@ build/windows/
 #build/linux.mk
 build/windows.mk
 build/epm
+build/*.bmp
 TAGS
 
 

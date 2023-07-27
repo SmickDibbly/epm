@@ -60,24 +60,24 @@ static zgl_LongKeyCode map[NUM_KEYACT] = {
 static char const * const group_str = "Keymap.Global";
 
 static ConfigMapEntry const cme_keys[NUM_KEYACT] = {
-    {"Exit",              map + KEYACT_EXIT},
-    {"ToggleTextOverlay", map + KEYACT_TEXT_OVERLAY},
-    {"ToggleFPSCap",      map + KEYACT_FPSCAP},
-    {"ShowLogview",       map + KEYACT_SHOW_LOGVIEW},
-    {"QuadLayout",        map + KEYACT_QUAD_LAYOUT},
-    {"MonoTopLayout",     map + KEYACT_MONO_TOP_LAYOUT},
-    {"MonoSideLayout",    map + KEYACT_MONO_SIDE_LAYOUT},
-    {"MonoFrontLayout",   map + KEYACT_MONO_FRONT_LAYOUT},
-    {"Mono3DLayout",      map + KEYACT_MONO_3D_LAYOUT},
-    {"NextViewport",      map + KEYACT_NEXT_VP},
-    {"PrevViewport",      map + KEYACT_PREV_VP},
-    {"NextLayout",        map + KEYACT_NEXT_VPL},
-    {"PrevLayout",        map + KEYACT_PREV_VPL},
-    {"NextInterface",     map + KEYACT_NEXT_VPI},
-    {"PrevInterface",     map + KEYACT_PREV_VPI},
-    {"Screenshot",        map + KEYACT_SCREENSHOT},
+    {"Exit",               map + KEYACT_EXIT},
+    {"ToggleTextOverlay",  map + KEYACT_TEXT_OVERLAY},
+    {"ToggleFPSCap",       map + KEYACT_FPSCAP},
+    {"ShowLogview",        map + KEYACT_SHOW_LOGVIEW},
+    {"QuadLayout",         map + KEYACT_QUAD_LAYOUT},
+    {"MonoTopLayout",      map + KEYACT_MONO_TOP_LAYOUT},
+    {"MonoSideLayout",     map + KEYACT_MONO_SIDE_LAYOUT},
+    {"MonoFrontLayout",    map + KEYACT_MONO_FRONT_LAYOUT},
+    {"Mono3DLayout",       map + KEYACT_MONO_3D_LAYOUT},
+    {"NextViewport",       map + KEYACT_NEXT_VP},
+    {"PrevViewport",       map + KEYACT_PREV_VP},
+    {"NextLayout",         map + KEYACT_NEXT_VPL},
+    {"PrevLayout",         map + KEYACT_PREV_VPL},
+    {"NextInterface",      map + KEYACT_NEXT_VPI},
+    {"PrevInterface",      map + KEYACT_PREV_VPI},
+    {"Screenshot",         map + KEYACT_SCREENSHOT},
     {"ScreenshotViewport", map + KEYACT_SCREENSHOT_VP},
-    {"RebuildGeometry",   map + KEYACT_REBUILD_GEOMETRY},
+    {"RebuildGeometry",    map + KEYACT_REBUILD_GEOMETRY},
 };
 
 static void key_str_to_key(void *var, char const *key_str) {
@@ -153,7 +153,7 @@ epm_Result do_KeyPress_global(zgl_KeyPressEvent *evt) {
         epm_PrevVPLayout();
     }
     else if (key == map[KEYACT_REBUILD_GEOMETRY]) {
-        epm_RebuildGeometry();
+        epm_Build();
     }
     else if (key == map[KEYACT_SCREENSHOT_VP]) {
         epm_ScreenshotViewport(NULL, NULL);

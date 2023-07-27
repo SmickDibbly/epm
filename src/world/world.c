@@ -4,7 +4,7 @@
 #include "src/draw/textures.h"
 #include "src/world/world.h"
 #include "src/world/bsp/bsp.h"
-
+#include "src/world/selection.h"
 #include "src/entity/entity.h"
 
 Mesh E1M1;
@@ -36,32 +36,29 @@ EditorCamera const default_cam = {
 EditorCamera cam = default_cam;
 epm_EntityNode cam_node = {.entity = &cam, .onTic = onTic_cam};
 
-Brush *frame;
-
 Player player = {.pos = {.v = {0, 0, 256}}};
 epm_EntityNode player_node = {.entity = &player, .onTic = onTic_player};
 
 Transform tf;
 
 BrushGeometry g_geo_brush = {0};
-static WorldVec g_static_V[MAX_STATIC_V] = {0};
-//static uint8_t  g_static_VBRI[MAX_STATIC_V] = {0};
-static Edge     g_static_E[MAX_STATIC_E] = {0};
-static Face     g_static_F[MAX_STATIC_F] = {0};
-static uint8_t  g_static_FBRI[MAX_STATIC_F] = {0};
-static Brush   *g_static_og_brush[MAX_STATIC_F] = {0};
-StaticGeometry g_geo_prebsp = {
-    .num_vertices = 0,
-    .vertices = g_static_V,
-    //.vbris = g_static_VBRI,
+static WorldVec   g_pre_V[MAX_STATIC_V] = {0};
+static PreVertExt g_pre_VX[MAX_STATIC_V] = {0};
+static Edge       g_pre_E[MAX_STATIC_E] = {0};
+//static PreEdgeExt g_pre_EX[MAX_STATIC_E] = {0};
+static Face       g_pre_F[MAX_STATIC_F] = {0};
+static PreFaceExt g_pre_FX[MAX_STATIC_F] = {0};
+PreGeometry g_geo_prebsp = {
+    .num_verts = 0,
+    .verts = g_pre_V,
+    .vert_exts = g_pre_VX,
 
     .num_edges = 0,
-    .edges = g_static_E,
+    .edges = g_pre_E,
 
     .num_faces = 0,
-    .faces = g_static_F,
-    .fbris = g_static_FBRI,
-    .progenitor_brush = g_static_og_brush,
+    .faces = g_pre_F,
+    .face_exts = g_pre_FX,
 };
 BSPTree g_geo_bsp = {0};
 epm_World g_world = {0};
@@ -120,8 +117,8 @@ Edge bigbox_edges[18] = {
 };
 
 EdgeSet view3D_bigbox = {
-    .num_vertices = 16,
-    .vertices = bigbox_vertices,
+    .num_verts = 16,
+    .verts = bigbox_vertices,
     .num_edges = 18,
     .edges = bigbox_edges,
     .wirecolor = 0x2596BE
@@ -174,8 +171,8 @@ Edge grid_edges[12] = {
 };
 
 EdgeSet view3D_grid = {
-    .num_vertices = 24,
-    .vertices = grid_vertices,
+    .num_verts = 24,
+    .verts = grid_vertices,
     .num_edges = 12,
     .edges = grid_edges,
     .wirecolor = 0x235367
@@ -191,7 +188,7 @@ epm_Result epm_Tic(void) {
 
 
 epm_Result epm_InitWorld(void) {
-    g_world.loaded = false;
+    g_world.worldflags = 0;
     g_world.geo_brush = &g_geo_brush;
     g_world.geo_prebsp = &g_geo_prebsp;
     g_world.geo_bsp = &g_geo_bsp;
@@ -200,33 +197,23 @@ epm_Result epm_InitWorld(void) {
     cam_node.next = &player_node;
     player_node.next = NULL;
     
-    frame = create_CuboidBrush((WorldVec){{-fixify(128), -fixify(128), -fixify(128)}}, CSG_SUBTRACTIVE,
-                               fixify(256), fixify(256), fixify(256));
-
-
+    g_frame = create_cuboid_brush
+        ((WorldVec){{-fixify(128), -fixify(128), -fixify(128)}},
+         (WorldVec){{ fixify(256),  fixify(256),  fixify(256)}});
+    g_world.worldflags |= WF_LOADED_BRUSHGEO;
+    
     extern void init_OBJ_reader(void);
     init_OBJ_reader();
-    
-    /*
-    // TEMP
-    g_world.lights[0].pos = (WorldVec){{-fixify(1000), fixify(3000), fixify(179)}};
-    g_world.lights[0].brightness = 255;
-    g_world.lights[0].inner_radius = fixify(1);
-    g_world.lights[0].outer_radius = fixify(2048);
-    g_world.lights[1].pos = (WorldVec){{-fixify(1500), fixify(3500), 0}};
-    g_world.lights[1].brightness = 127;
-    g_world.lights[1].inner_radius = fixify(64);
-    g_world.lights[1].outer_radius = fixify(2048);
-    g_world.num_lights = 2;
-
-
-
-    //read_OBJ(&teapot, "african_head");
-    read_OBJ(&teapot, "DOOM_E1M1");
-    //read_GLTF(&teapot, "SM_Deccer_Cubes");
-    epm_WorldFromMesh(&teapot);
     read_OBJ(&skybox, "skybox");
+
     
+    //read_OBJ(&teapot, "african_head");
+    //read_OBJ(&teapot, "DOOM_E1M1");
+    //read_GLTF(&teapot, "SM_Deccer_Cubes");
+    //epm_WorldFromMesh(&teapot);
+    
+
+    /*
     find_all_t_junctions(&(Mesh){
             .num_vertices = g_world.geo_bsp->num_vertices,
             .vertices = g_world.geo_bsp->vertices,
@@ -235,8 +222,9 @@ epm_Result epm_InitWorld(void) {
             .num_faces = g_world.geo_bsp->num_faces,
             .faces = g_world.geo_bsp->faces,
         });
-    //fix_all_t_junctions((Mesh){});
     */
+    //fix_all_t_junctions((Mesh){});
+
     //read_OBJ(&teapot, "DOOM_E1M1");
     //read_OBJ(&skybox, "skybox");        
     //epm_LoadWorld("brush_world2");
@@ -245,68 +233,55 @@ epm_Result epm_InitWorld(void) {
 }
 
 epm_Result epm_TermWorld(void) {
-    destroy_CuboidBrush(frame);
+    BrushSel_clear();
+    BrushPolySel_clear();
+    BrushVertSel_clear();
     
     epm_UnloadWorld();
+
+    destroy_brush(g_frame);
     
     return EPM_SUCCESS;
 }
 
 epm_Result epm_LoadWorld(char *worldname) {
-    if (g_world.loaded) epm_UnloadWorld();
-
+    BrushSel_clear();
+    BrushPolySel_clear();
+    BrushVertSel_clear();
+    
+    if (g_world.worldflags) epm_UnloadWorld();
+    g_world.worldflags = 0;
+    
     if (EPM_SUCCESS != epm_ReadWorldFile(&g_world, worldname)) {
         epm_UnloadWorld();
         return EPM_FAILURE;
     }
-    
-    if (EPM_SUCCESS != epm_TriangulateAndMergeBrushGeometry()) {
-        epm_UnloadWorld();
-        return EPM_FAILURE;
-    }
-    
-    // TEMP
-    g_world.lights[0] = (Light){.pos = (WorldVec){{fixify(256), fixify(256), 0}},
-                                .brightness = 255,
-                                .inner_radius = fixify(1),
-                                .outer_radius = fixify(1024)};
-    g_world.lights[1] = (Light){.pos = (WorldVec){{-fixify(256), -fixify(256), 0}},
-                                .brightness = 255,
-                                .inner_radius = fixify(1),
-                                .outer_radius = fixify(1024)};
-    g_world.num_lights = 2;
+    g_world.worldflags |= WF_LOADED_BRUSHGEO;
 
-    epm_ComputeVertexBrightnessesNEW(g_geo_prebsp.num_vertices, g_geo_prebsp.vertices,
-                                     g_world.num_lights, g_world.lights,
-                                     g_geo_prebsp.num_faces, g_geo_prebsp.faces);
-    
-    if (EPM_SUCCESS !=
-        create_BSPTree(g_world.geo_bsp, 1,
-                       g_world.geo_prebsp->num_vertices, g_world.geo_prebsp->vertices,
-                       g_world.geo_prebsp->num_edges, g_world.geo_prebsp->edges,
-                       g_world.geo_prebsp->num_faces, g_world.geo_prebsp->faces)) {
-        epm_UnloadWorld();
-        return EPM_FAILURE;
-    }
+    epm_Build();
 
-    extern void update_BSPView(void);
-    update_BSPView();
-
-    // temporary
+    // Prepare entities. TODO: Don't hardcode this obviously.
     g_world.entity_head.next = &cam_node;
     cam_node.next = &player_node;
     player_node.next = NULL;
-    
-    g_world.loaded = true;
-    
+    g_world.worldflags |= WF_LOADED_ENTITY;
+
+    BrushSel_clear();
+    BrushPolySel_clear();
+    BrushVertSel_clear();
+
     return EPM_SUCCESS;
 }
 
 epm_Result epm_WorldFromMesh(Mesh *mesh) {
-    if (g_world.loaded) epm_UnloadWorld();
+    BrushSel_clear();
+    BrushPolySel_clear();
+    BrushVertSel_clear();
     
-    g_world.geo_prebsp->num_vertices = mesh->num_vertices;
-    memcpy(g_world.geo_prebsp->vertices, mesh->vertices, mesh->num_vertices*sizeof(WorldVec));
+    if (g_world.worldflags) epm_UnloadWorld();
+    
+    g_world.geo_prebsp->num_verts = mesh->num_verts;
+    memcpy(g_world.geo_prebsp->verts, mesh->verts, mesh->num_verts*sizeof(WorldVec));
 
     g_world.geo_prebsp->num_edges = mesh->num_edges;
     memcpy(g_world.geo_prebsp->edges, mesh->edges, mesh->num_edges*sizeof(Edge));
@@ -314,40 +289,29 @@ epm_Result epm_WorldFromMesh(Mesh *mesh) {
     g_world.geo_prebsp->num_faces = mesh->num_faces;
     memcpy(g_world.geo_prebsp->faces, mesh->faces, mesh->num_faces*sizeof(Face));
 
-    epm_ComputeVertexBrightnessesNEW(g_geo_prebsp.num_vertices, g_geo_prebsp.vertices,
-                                     g_world.num_lights, g_world.lights,
-                                     g_geo_prebsp.num_faces, g_geo_prebsp.faces);
+    g_world.worldflags |= WF_LOADED_PREBSPGEO;
+
+    epm_BuildLighting();
+    epm_BuildBSP();
     
-    if (EPM_SUCCESS !=
-        create_BSPTree(g_world.geo_bsp, 1,
-                       g_world.geo_prebsp->num_vertices, g_world.geo_prebsp->vertices,
-                       g_world.geo_prebsp->num_edges, g_world.geo_prebsp->edges,
-                       g_world.geo_prebsp->num_faces, g_world.geo_prebsp->faces)) {
-        epm_UnloadWorld();
-        return EPM_FAILURE;
-    }
-
-    extern void update_BSPView(void);
-    update_BSPView();
-
     // temporary
     g_world.entity_head.next = &cam_node;
     cam_node.next = &player_node;
     player_node.next = NULL;
-    
-    g_world.loaded = true;
+    g_world.worldflags |= WF_LOADED_ENTITY;
 
     return EPM_SUCCESS;
 }
 
 epm_Result epm_UnloadWorld(void) {
     destroy_BSPTree(g_world.geo_bsp);
-
-    reset_StaticGeometry();
+    g_world.worldflags &= ~WF_LOADED_BSPGEO;
+    
+    reset_PreGeometry();
+    g_world.worldflags &= ~WF_LOADED_PREBSPGEO;
 
     reset_BrushGeometry();
-    
-    g_world.loaded = false;
+    g_world.worldflags &= ~WF_LOADED_PREBSPGEO;
     
     return EPM_SUCCESS;
 }
@@ -363,7 +327,7 @@ epm_Result reset_BrushGeometry(void) {
          node_next = node->next;
 
          dibassert(node->brush);
-         zgl_Free(node->brush);
+         destroy_brush(node->brush);
          zgl_Free(node);
     }
  
@@ -373,8 +337,8 @@ epm_Result reset_BrushGeometry(void) {
     return EPM_SUCCESS;
 }
 
-epm_Result reset_StaticGeometry(void) {
-    g_geo_prebsp.num_vertices = 0;
+epm_Result reset_PreGeometry(void) {
+    g_geo_prebsp.num_verts = 0;
     g_geo_prebsp.num_edges = 0;
     g_geo_prebsp.num_faces = 0;
     
@@ -399,7 +363,7 @@ epm_Command const CMD_worldfromobj = {
 
 static void CMDH_loadworld(int argc, char **argv, char *output_str) {
     (void)output_str;
-    
+
     epm_LoadWorld(argv[1]);
 }
 
@@ -446,51 +410,100 @@ epm_Command const CMD_saveworld = {
     .handler = CMDH_saveworld,
 };
 
-epm_Result epm_RebuildGeometry(void) {
-    if ( ! g_world.loaded) {
-        epm_Log(LT_INFO, "Can't rebuild an empty world.");
-        return EPM_FAILURE;
-    }
 
-    destroy_BSPTree(g_world.geo_bsp);
-    reset_StaticGeometry();
-    //reset_BrushGeometry();
-
-    if (EPM_SUCCESS != epm_TriangulateAndMergeBrushGeometry()) {
+epm_Result epm_BuildPreBSP(void) {
+    if (EPM_SUCCESS != triangulate_world()) {
         epm_UnloadWorld();
         return EPM_FAILURE;
     }
+    g_world.worldflags |= WF_LOADED_PREBSPGEO;
+    
+    return EPM_SUCCESS;
+}
 
-    epm_ComputeVertexBrightnessesNEW(g_geo_prebsp.num_vertices, g_geo_prebsp.vertices,
-                                     g_world.num_lights, g_world.lights,
-                                     g_geo_prebsp.num_faces, g_geo_prebsp.faces);
+epm_Result epm_BuildLighting(void) {
+    g_world.lights[0] = (Light){.pos = (WorldVec){{fixify(256), fixify(256), 0}},
+                                .brightness = 128,
+                                .inner_radius = fixify(1),
+                                .outer_radius = fixify(512)};
+    g_world.lights[1] = (Light){.pos = (WorldVec){{-fixify(256), -fixify(256), 0}},
+                                .brightness = 96,
+                                .inner_radius = fixify(1),
+                                .outer_radius = fixify(512)};
+    g_world.num_lights = 2;
 
+    epm_ComputeVertexBrightnesses(g_geo_prebsp.num_verts, g_geo_prebsp.verts,
+                                  g_world.num_lights, g_world.lights,
+                                  g_geo_prebsp.num_faces, g_geo_prebsp.faces);
+
+    return EPM_SUCCESS;
+    return EPM_SUCCESS;
+}
+
+epm_Result epm_BuildBSP(void) {
     if (EPM_SUCCESS !=
-        create_BSPTree(g_world.geo_bsp, 1,
-                       g_world.geo_prebsp->num_vertices, g_world.geo_prebsp->vertices,
-                       g_world.geo_prebsp->num_edges, g_world.geo_prebsp->edges,
-                       g_world.geo_prebsp->num_faces, g_world.geo_prebsp->faces)) {
+        create_BSPTree(g_world.geo_bsp, g_world.geo_prebsp)) {
         epm_UnloadWorld();
         return EPM_FAILURE;
     }
+    g_world.worldflags |= WF_LOADED_BSPGEO;
 
     extern void update_BSPView(void);
     update_BSPView();
     
-    g_world.loaded = true;
+    return EPM_SUCCESS;
+}
+
+/* Make no change to brush geometry, but process the world from that point. */
+epm_Result epm_Build(void) {
+    BrushSel_clear();
+    BrushPolySel_clear();
+    BrushVertSel_clear();
+    
+    // Unload only BSP and PreBSP
+    destroy_BSPTree(g_world.geo_bsp);
+    g_world.worldflags &= ~WF_LOADED_BSPGEO;
+    reset_PreGeometry();
+    g_world.worldflags &= ~WF_LOADED_PREBSPGEO;
+
+    epm_BuildPreBSP();
+    epm_BuildLighting();
+    epm_BuildBSP();
 
     return EPM_SUCCESS;
 }
 
+void print_StaticGeometry(void) {
+    PreGeometry *geo = g_world.geo_prebsp;
 
+    for (size_t i_v = 0; i_v < geo->num_verts; i_v++) {
+        printf("v %s %s %s\n",
+               fmt_fix_x(x_of(geo->verts[i_v]), 16),
+               fmt_fix_x(y_of(geo->verts[i_v]), 16),
+               fmt_fix_x(z_of(geo->verts[i_v]), 16));
+    }
+
+    for (size_t i_e = 0; i_e < geo->num_edges; i_e++) {
+        printf("e %zu %zu\n", geo->edges[i_e].i_v0, geo->edges[i_e].i_v1);
+    }
+
+    for (size_t i_f = 0; i_f < geo->num_faces; i_f++) {
+        printf("f %zu %zu %zu\n",
+               geo->faces[i_f].i_v[0],
+               geo->faces[i_f].i_v[1],
+               geo->faces[i_f].i_v[2]);
+    }
+}
 
 static void CMDH_rebuild(int argc, char **argv, char *output_str) {
+    /*
     if ( ! g_world.loaded) {
         sprintf(output_str, "Can't rebuild an empty world.");
         return;
     }
+    */
 
-    epm_RebuildGeometry();
+    epm_Build();
 }
 
 epm_Command const CMD_rebuild = {
@@ -499,7 +512,6 @@ epm_Command const CMD_rebuild = {
     .argc_max = 1,
     .handler = CMDH_rebuild,
 };
-
 
 
 void epm_ComputeVertexBrightnessesNEW(size_t num_vertices, WorldVec const vertices[], size_t num_lights, Light const lights[], size_t num_faces, Face faces[]) {
@@ -514,7 +526,6 @@ void epm_ComputeVertexBrightnessesNEW(size_t num_vertices, WorldVec const vertic
             for (size_t i_l = 0; i_l < num_lights; i_l++) {
                 Light const *light = lights + i_l;
                 WorldVec l = light->pos; 
-                //Fix64 lI = light->brightness; // .0
                 int16_t lI = light->brightness; // .0
                 Fix32 r = light->inner_radius; // .16
                 Fix32 R = light->outer_radius; // .16
@@ -572,17 +583,51 @@ void epm_ComputeVertexBrightnessesNEW(size_t num_vertices, WorldVec const vertic
     }
 }
 
-void epm_ComputeVertexBrightnesses(size_t num_vertices, WorldVec const vertices[], size_t num_lights, Light const lights[], uint8_t out_vbri[]) {
+void epm_ComputeVertexBrightness
+(WorldVec v,
+ size_t num_lights, Light const lights[],
+ uint8_t *vbri) {
+    Fix64 vI = 0;
+
+    for (size_t i_l = 0; i_l < num_lights; i_l++) {
+        Light const *light = lights + i_l;
+        WorldVec l = light->pos; 
+        int16_t lI = light->brightness; // .0
+        Fix32 r = light->inner_radius; // .16
+        Fix32 R = light->outer_radius; // .16
+
+        Fix64 D = norm_Euclidean(diff(l, v))/*>>8*/; // .16
+
+        Fix64 vI_inc;
+        if (D <= r) {
+            vI_inc = lI;
+        }
+        else if (R <= D) {
+            vI_inc = 0;
+        }
+        else {
+            vI_inc = (lI*(D-R))/(r-R);
+        }
+
+        dibassert(vI_inc <= 255);
+        vI = MIN(vI + vI_inc, 255);
+    }
+    *vbri = (uint8_t)(vI);
+}
+
+void epm_ComputeVertexBrightnesses(size_t num_vertices, WorldVec const vertices[], size_t num_lights, Light const lights[], size_t num_faces, Face faces[]) {
+    uint8_t *tmp_vbri = zgl_Malloc(num_vertices*sizeof(*tmp_vbri));
+    
     for (size_t i_v = 0; i_v < num_vertices; i_v++) {
         WorldVec v = vertices[i_v];
         Fix64 vI = 0;
 
         for (size_t i_l = 0; i_l < num_lights; i_l++) {
-            WorldVec l = lights[i_l].pos; 
-            //Fix64 lI = lights[i_l].brightness; // .0
-            int16_t lI = lights[i_l].brightness; // .0
-            Fix32 r = lights[i_l].inner_radius; // .16
-            Fix32 R = lights[i_l].outer_radius; // .16
+            Light const *light = lights + i_l;
+            WorldVec l = light->pos; 
+            int16_t lI = light->brightness; // .0
+            Fix32 r = light->inner_radius; // .16
+            Fix32 R = light->outer_radius; // .16
 
             // linear attentuation
             Fix64 D = norm_Euclidean(diff(l, v))/*>>8*/; // .16
@@ -591,13 +636,13 @@ void epm_ComputeVertexBrightnesses(size_t num_vertices, WorldVec const vertices[
               (Fix64)y_of(diff)*(Fix64)y_of(diff) +
               (Fix64)z_of(diff)*(Fix64)z_of(diff))>>18;
             */
-            //            printf("L = %lu\n", lI);
-            //            printf("r = %s\n", fmt_fix_d(r, 16, 4));
-            //            printf("R = %s\n", fmt_fix_d(R, 16, 4));
-            //            printf("D = %s\n", fmt_fix_d(D, 16, 4));
+            // printf("L = %lu\n", lI);
+            // printf("r = %s\n", fmt_fix_d(r, 16, 4));
+            // printf("R = %s\n", fmt_fix_d(R, 16, 4));
+            // printf("D = %s\n", fmt_fix_d(D, 16, 4));
             
             // Suppose we have D = 256 Then 1/D = 1/256. So if L=255 then L/D = 0. Thus we should have a scalar c so that D = R gives cI/R = 1/256. ie. c = I*256/R,
-            
+
             Fix64 vI_inc;
             if (D <= r) {
                 vI_inc = lI;
@@ -611,10 +656,19 @@ void epm_ComputeVertexBrightnesses(size_t num_vertices, WorldVec const vertices[
                 //inc = (lbri<<16)/(D);
             }
 
-            //printf("inc = %lu\n\n", vI_inc);
+            //printf("(i_l %zu) (vI_inc %lu)\n\n", i_l, vI_inc);
             dibassert(vI_inc <= 255);
             vI = MIN(vI + vI_inc, 255);
         }
-        out_vbri[i_v] = (uint8_t)(vI);
+        tmp_vbri[i_v] = (uint8_t)(vI);
     }
+
+    for (size_t i_f = 0; i_f < num_faces; i_f++) {
+        Face *face = faces + i_f;
+        for (size_t i_i_v = 0; i_i_v < 3; i_i_v++) {
+            face->vbri[i_i_v] = tmp_vbri[face->i_v[i_i_v]];
+        }
+    }
+
+    zgl_Free(tmp_vbri);
 }
